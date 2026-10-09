@@ -77,21 +77,21 @@ dialog:
   login-cancel-kicks: true
   register-cancel-kicks: false
   login:
-    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʟᴏɢɪɴ"
+    title: "&#55cdfcʟᴏɢɪɴ"
     body: "&7ᴘʟᴇᴀꜱᴇ ᴇɴᴛᴇʀ ʏᴏᴜʀ ᴘᴀꜱꜱᴡᴏʀᴅ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ."
     password-label: "ᴘᴀꜱꜱᴡᴏʀᴅ"
     submit-button: "&aʟᴏɢɪɴ"
     cancel-button: "&cᴄᴀɴᴄᴇʟ"
   register:
-    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʀᴇɢɪꜱᴛᴇʀ"
+    title: "&#55cdfcʀᴇɢɪꜱᴛᴇʀ"
     body: "&7ᴄʀᴇᴀᴛᴇ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴛᴏ ꜱᴛᴀʀᴛ ᴘʟᴀʏɪɴɢ ᴏɴ ᴛʜɪꜱ ꜱᴇʀᴠᴇʀ."
     password-label: "ᴘᴀꜱꜱᴡᴏʀᴅ"
     confirm-label: "ᴄᴏɴꜰɪʀᴍ ᴘᴀꜱꜱᴡᴏʀᴅ"
     submit-button: "&aʀᴇɢɪꜱᴛᴇʀ"
     cancel-button: "&cᴄᴀɴᴄᴇʟ"
   queue:
-    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &eʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ qᴜᴇᴜᴇ"
-    body: "&eʜɪ! ʏᴏᴜ ᴀʀᴇ ɴᴇxᴛ ɪɴ ʟɪɴᴇ ɪɴ qᴜᴇᴜᴇ ꜰᴏʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ.\n\n&7• ʏᴏᴜʀ ᴘᴏꜱɪᴛɪᴏɴ: &f#{pos}\n&7• ᴇꜱᴛɪᴍᴀᴛᴇᴅ ᴡᴀɪᴛ: &b~{min} ᴍɪɴᴜᴛᴇꜱ\n\n&8(ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ʀᴀᴛᴇ ʟɪᴍɪᴛ ᴀᴄᴛɪᴠᴇ: 5 ᴀᴄᴄᴏᴜɴᴛꜱ ᴘᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ)"
+    title: "&#55cdfcqᴜᴇᴜᴇ"
+    body: "&eʜɪ! ʏᴏᴜ ᴀʀᴇ ɴᴇxᴛ ɪɴ ʟɪɴᴇ ꜰᴏʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ.\n\n&7• ʏᴏᴜʀ ᴘᴏꜱɪᴛɪᴏɴ: &f#{pos}\n&7• ᴇꜱᴛɪᴍᴀᴛᴇᴅ ᴡᴀɪᴛ: &b~{min} ᴍɪɴᴜᴛᴇꜱ\n\n&8(ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ ᴡʜɪʟᴇ ᴡᴇ ᴘʀᴇᴘᴀʀᴇ ʏᴏᴜʀ ꜱᴇꜱꜱɪᴏɴ)"
     refresh-button: "&eᴄʜᴇᴄᴋ qᴜᴇᴜᴇ / ʀᴇꜰʀᴇꜱʜ"
     cancel-button: "&cᴄᴀɴᴄᴇʟ"
 

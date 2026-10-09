@@ -405,7 +405,7 @@ public class PreJoinDialogManager implements Listener {
     }
 
     public Dialog createLoginDialog(String username) {
-        String titleStr = plugin.getConfig().getString("dialog.login.title", "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʟᴏɢɪɴ");
+        String titleStr = plugin.getConfig().getString("dialog.login.title", "&#55cdfcʟᴏɢɪɴ");
         String bodyStr = plugin.getConfig().getString("dialog.login.body", "&7ᴘʟᴇᴀꜱᴇ ᴇɴᴛᴇʀ ʏᴏᴜʀ ᴘᴀꜱꜱᴡᴏʀᴅ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.");
         String passLabel = plugin.getConfig().getString("dialog.login.password-label", "ᴘᴀꜱꜱᴡᴏʀᴅ");
         String submitBtn = plugin.getConfig().getString("dialog.login.submit-button", "&aʟᴏɢɪɴ");
@@ -447,7 +447,7 @@ public class PreJoinDialogManager implements Listener {
     }
 
     public Dialog createRegisterDialog(String username) {
-        String titleStr = plugin.getConfig().getString("dialog.register.title", "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʀᴇɢɪꜱᴛᴇʀ");
+        String titleStr = plugin.getConfig().getString("dialog.register.title", "&#55cdfcʀᴇɢɪꜱᴛᴇʀ");
         String bodyStr = plugin.getConfig().getString("dialog.register.body", "&7ᴄʀᴇᴀᴛᴇ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴛᴏ ꜱᴛᴀʀᴛ ᴘʟᴀʏɪɴɢ ᴏɴ ᴛʜɪꜱ ꜱᴇʀᴠᴇʀ.");
         String passLabel = plugin.getConfig().getString("dialog.register.password-label", "ᴘᴀꜱꜱᴡᴏʀᴅ");
         String confirmLabel = plugin.getConfig().getString("dialog.register.confirm-label", "ᴄᴏɴꜰɪʀᴍ ᴘᴀꜱꜱᴡᴏʀᴅ");
@@ -493,13 +493,13 @@ public class PreJoinDialogManager implements Listener {
     }
 
     public Dialog createQueueDialog(String username, int position, int waitSeconds) {
-        String titleStr = plugin.getConfig().getString("dialog.queue.title", "&#55cdfcᴛɪʀɴᴜᴇ &8- &eʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ qᴜᴇᴜᴇ");
+        String titleStr = plugin.getConfig().getString("dialog.queue.title", "&#55cdfcqᴜᴇᴜᴇ");
         int minutes = Math.max(1, (waitSeconds + 59) / 60);
         String bodyStr = plugin.getConfig().getString("dialog.queue.body",
                 "&eʜɪ! ʏᴏᴜ ᴀʀᴇ ɴᴇxᴛ ɪɴ ʟɪɴᴇ ɪɴ qᴜᴇᴜᴇ ꜰᴏʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ.\n\n" +
                 "&7• ʏᴏᴜʀ ᴘᴏꜱɪᴛɪᴏɴ: &f#{pos}\n" +
                 "&7• ᴇꜱᴛɪᴍᴀᴛᴇᴅ ᴡᴀɪᴛ: &b~{min} ᴍɪɴᴜᴛᴇꜱ\n\n" +
-                "&8(ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ʀᴀᴛᴇ ʟɪᴍɪᴛ ᴀᴄᴛɪᴠᴇ: 5 ᴀᴄᴄᴏᴜɴᴛꜱ ᴘᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ)")
+                "&8(ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ ᴡʜɪʟᴇ ᴡᴇ ᴘʀᴇᴘᴀʀᴇ ʏᴏᴜʀ ꜱᴇꜱꜱɪᴏɴ)")
                 .replace("{pos}", String.valueOf(position))
                 .replace("{min}", String.valueOf(minutes))
                 .replace("{sec}", String.valueOf(waitSeconds));
