@@ -85,8 +85,27 @@ public class LoginEncryptionPacketListener extends PacketListenerAbstract {
             if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
                 // If registered as PREMIUM in database, cryptographic Mojang auth is STRICTLY required
                 shouldChallenge = true;
+            } else if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.CRACKED) {
+                // Account is already registered as CRACKED in database
+                String priority = plugin.getConfig().getString("security.priority", "PREMIUM").toUpperCase();
+                if ("PREMIUM".equals(priority)) {
+                    // Under PREMIUM priority: if the official Mojang client connects, challenge them so they can claim/upgrade it
+                    if (plugin.getConfig().getBoolean("mojang.enabled", true) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+                        Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
+                        if (prof.isPresent() && prof.get().isPremium()) {
+                            UUID officialUuid = prof.get().getUuid();
+                            if (officialUuid != null && officialUuid.equals(playerUUID)) {
+                                shouldChallenge = true;
+                            }
+                        }
+                    }
+                } else {
+                    // Under CRACKED priority: do NOT challenge with encryption!
+                    // Retain password protection and fallback to normal offline login flow (Paper Login Dialog)
+                    shouldChallenge = false;
+                }
             } else {
-                // Not registered as PREMIUM (unregistered or registered as CRACKED):
+                // Unregistered account:
                 // Only challenge if the connecting client presents the official Mojang UUID
                 if (plugin.getConfig().getBoolean("mojang.enabled", true) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
                     Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);

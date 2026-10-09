@@ -65,6 +65,7 @@ flowchart TD
 * **Bedrock Support**: Bedrock players log in automatically through Floodgate and Xbox Live. Java clients attempting to spoof `.` usernames are kicked on pre-login.
 * **Anti-Bot Protection**: Form submissions faster than 800ms are kicked as bots. Rapid registration bursts automatically route new accounts into an in-dialogue queue.
 * **Mojang API Throttling**: A token-bucket limiter keeps outbound Mojang lookups under rate limits to prevent IP bans and connection stalls.
+* **Account Ownership Priority (`PREMIUM` vs `CRACKED`)**: Toggle whether official Mojang accounts can claim/overwrite existing cracked registrations, or enforce "First-Come, First-Served" where registered cracked accounts are protected from overwrites and official accounts must enter the account password via the pre-join dialog.
 * **AuthMe Importer**: Migrates existing user accounts, salts, and SHA-256 hashes straight out of `plugins/AuthMe/authme.db`.
 
 ---
@@ -86,7 +87,8 @@ flowchart TD
 
 | Command | Description |
 | :--- | :--- |
-| `/tauth status` | View rate limiter tokens, join surge state, and queue activity. |
+| `/tauth status` | View rate limiter tokens, join surge state, queue activity, and account priority. |
+| `/tauth priority [premium\|cracked]` | Toggle account ownership priority mode (`PREMIUM` or `CRACKED`). |
 | `/tauth ipbind [on\|off]` | Toggle premium IP-binding checks. |
 | `/tauth surge [on\|off]` | Toggle connection surge detection. |
 | `/tauth ratelimit [on\|off]` | Toggle Mojang API token-bucket rate limiter. |

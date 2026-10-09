@@ -71,3 +71,6 @@ admin-forcelogin-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} forcelogin <ᴘʟᴀʏ
 admin-forcelogin-not-online: 'ꑬ &cᴘʟᴀʏᴇʀ &f{player} &cɪꜱ ɴᴏᴛ ᴄᴜʀʀᴇɴᴛʟʏ ᴏɴʟɪɴᴇ.'
 admin-forcelogin-target: 'ꑫ &aʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ꜰᴏʀᴄᴇꜰᴜʟʟʏ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ʙʏ ᴀɴ ᴀᴅᴍɪɴɪꜱᴛʀᴀᴛᴏʀ.'
 admin-forcelogin-admin-success: 'ꑫ &aᴘʟᴀʏᴇʀ &f{player} &aʜᴀꜱ ʙᴇᴇɴ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ.'
+admin-priority-current: 'ꑪ &bᴄᴜʀʀᴇɴᴛ ᴀᴄᴄᴏᴜɴᴛ ᴘʀɪᴏʀɪᴛʏ: &e{mode} &8(Use &b/{label} priority <premium|cracked>&8)'
+admin-priority-success: 'ꑫ &aᴀᴄᴄᴏᴜɴᴛ ᴘʀɪᴏʀɪᴛʏ ɪꜱ ɴᴏᴡ: &b[{mode}]'
+admin-priority-invalid: 'ꑬ &cɪɴᴠᴀʟɪᴅ ᴍᴏᴅᴇ. ᴜꜱᴀɢᴇ: &e/{label} priority <premium|cracked>'

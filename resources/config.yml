@@ -19,6 +19,10 @@ security:
   max-failed-attempts: 5
   # Maximum accounts registered per IP address
   max-registrations-per-ip: 4
+  # Account ownership priority when conflicts occur:
+  # PREMIUM: Official Mojang accounts take priority and can claim/upgrade registered cracked accounts.
+  # CRACKED: First-come, first-served. Once registered as cracked, password is retained and official accounts cannot overwrite it (falls back to password login).
+  priority: "PREMIUM"
   # Rapid registration surge protection & pre-join modal queue
   registration-surge:
     enabled: true

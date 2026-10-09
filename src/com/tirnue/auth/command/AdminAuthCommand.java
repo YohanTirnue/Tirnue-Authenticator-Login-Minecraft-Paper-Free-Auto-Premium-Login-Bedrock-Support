@@ -234,6 +234,9 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
                             " &8(&7Trigger: &f" + regSurge.getThreshold() + " reg in " + regSurge.getWindowMs() + "ms&8, &7Quota: &f" + regSurge.getAllowedPerInterval() + "/" + (regSurge.getCooldownSeconds()/60) + "m&8)"));
                 }
 
+                String priorityMode = plugin.getConfig().getString("security.priority", "PREMIUM").toUpperCase();
+                sender.sendMessage(plugin.color("&7- ᴀᴄᴄᴏᴜɴᴛ ᴘʀɪᴏʀɪᴛʏ: &b[" + priorityMode + "]"));
+
                 sender.sendMessage(plugin.color("&8&m----------------------------------------"));
                 return true;
             }
@@ -334,6 +337,30 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            case "priority":
+            case "prioritize": {
+                String current = plugin.getConfig().getString("security.priority", "PREMIUM").toUpperCase();
+                if (args.length < 2) {
+                    plugin.sendMessage(sender, "admin-priority-current",
+                            "ꑪ &bᴄᴜʀʀᴇɴᴛ ᴀᴄᴄᴏᴜɴᴛ ᴘʀɪᴏʀɪᴛʏ: &e{mode} &8(Use &b/{label} priority <premium|cracked>&8)",
+                            "{mode}", current, "{label}", label);
+                    return true;
+                }
+                String val = args[1].toUpperCase();
+                if (!val.equals("PREMIUM") && !val.equals("CRACKED")) {
+                    plugin.sendMessage(sender, "admin-priority-invalid",
+                            "ꑬ &cɪɴᴠᴀʟɪᴅ ᴍᴏᴅᴇ. ᴜꜱᴀɢᴇ: &e/{label} priority <premium|cracked>",
+                            "{label}", label);
+                    return true;
+                }
+                plugin.getConfig().set("security.priority", val);
+                plugin.saveConfig();
+                plugin.sendMessage(sender, "admin-priority-success",
+                        "ꑫ &aᴀᴄᴄᴏᴜɴᴛ ᴘʀɪᴏʀɪᴛʏ ɪꜱ ɴᴏᴡ: &b[{mode}]",
+                        "{mode}", val);
+                return true;
+            }
+
             default:
                 sendHelp(sender, label);
                 return true;
@@ -344,6 +371,7 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.color("&8&m----------------------------------------"));
         sender.sendMessage(plugin.color("&#55cdfcᴛɪʀɴᴜᴇᴀᴜᴛʜ &7v" + plugin.getDescription().getVersion() + " &8- &bᴀᴅᴍɪɴ ᴘᴀɴᴇʟ"));
         sender.sendMessage(plugin.color("&3/" + label + " status &7- ᴠɪᴇᴡ ꜱᴇᴄᴜʀɪᴛʏ & ʀᴀᴛᴇ-ʟɪᴍɪᴛ ꜱᴛᴀᴛᴜꜱ"));
+        sender.sendMessage(plugin.color("&3/" + label + " priority [premium|cracked] &7- ᴛᴏɢɢʟᴇ ᴀᴄᴄᴏᴜɴᴛ ᴏᴡɴᴇʀꜱʜɪᴘ ᴘʀɪᴏʀɪᴛʏ"));
         sender.sendMessage(plugin.color("&3/" + label + " ipbind [on|off] &7- ᴛᴏɢɢʟᴇ ᴘʀᴇᴍɪᴜᴍ ɪᴘ-ʙɪɴᴅɪɴɢ"));
         sender.sendMessage(plugin.color("&3/" + label + " surge [on|off] &7- ᴛᴏɢɢʟᴇ ᴊᴏɪɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ"));
         sender.sendMessage(plugin.color("&3/" + label + " ratelimit [on|off] &7- ᴛᴏɢɢʟᴇ ᴍᴏᴊᴀɴɢ ᴀᴘɪ ʀᴀᴛᴇ ʟɪᴍɪᴛᴇʀ"));
@@ -362,13 +390,18 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("tirnue.auth.admin")) return Collections.emptyList();
 
         if (args.length == 1) {
-            return Arrays.asList("status", "ipbind", "surge", "ratelimit", "regsurge", "check", "set", "unregister", "forcelogin", "import", "reload").stream()
+            return Arrays.asList("status", "priority", "ipbind", "surge", "ratelimit", "regsurge", "check", "set", "unregister", "forcelogin", "import", "reload").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
 
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
+            if (sub.equals("priority") || sub.equals("prioritize")) {
+                return Arrays.asList("premium", "cracked").stream()
+                        .filter(s -> s.startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
             if (sub.equals("regsurge")) {
                 return Arrays.asList("on", "off", "reset").stream()
                         .filter(s -> s.startsWith(args[1].toLowerCase()))

@@ -123,6 +123,13 @@ public class PreJoinDialogManager implements Listener {
                 }
                 return false;
             } else if (acc.getAuthType() == UserAccount.AuthType.CRACKED) {
+                String priority = plugin.getConfig().getString("security.priority", "PREMIUM").toUpperCase();
+                // If PREMIUM priority and client was verified by Mojang session server, skip dialog (auto-login & upgrade)
+                if ("PREMIUM".equals(priority) && plugin.getConfig().getBoolean("mojang.enabled", true)) {
+                    if (plugin.getMojangSessionVerifier() != null && plugin.getMojangSessionVerifier().isVerified(username)) {
+                        return true;
+                    }
+                }
                 // IP Session check strictly reserved for registered cracked accounts
                 if (clientIp != null && db.isSessionValid(username, clientIp)) {
                     return true;

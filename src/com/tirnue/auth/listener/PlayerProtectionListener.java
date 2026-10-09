@@ -105,6 +105,12 @@ public class PlayerProtectionListener implements Listener {
                         db.saveUser(newAcc);
                     } else {
                         UserAccount acc = accOpt.get();
+                        String priority = plugin.getConfig().getString("security.priority", "PREMIUM").toUpperCase();
+                        boolean isPremiumPriority = "PREMIUM".equals(priority);
+                        if (acc.getAuthType() == UserAccount.AuthType.CRACKED && !isPremiumPriority) {
+                            // Under CRACKED priority, do NOT overwrite or upgrade existing cracked account!
+                            return;
+                        }
                         acc.setIp(ip);
                         acc.setLastLogin(System.currentTimeMillis());
                         if (acc.getAuthType() != UserAccount.AuthType.PREMIUM) {
