@@ -1,8 +1,10 @@
 # TirnueAuth
 
-TirnueAuth authenticates players on Paper 1.21.4+ servers before they enter the world. It replaces AuthMe, FastLogin, and Floodgate bridges by handling passwords, official Mojang logins, and Bedrock verification in a single plugin. Unauthenticated players see a native modal dialog during the handshake, meaning they never load chunks, tick entities, or lag the server.
+TirnueAuth authenticates players on Paper 1.21.4+ servers before they enter the world. It provides true hybrid authentication on offline-mode (`online-mode=false`) servers: handling passwords, PacketEvents-powered cryptographic Mojang session verification, and Bedrock Floodgate auto-login in a single unified plugin.
 
-No ProtocolLib, no packet hacks, and no waiting for third-party dev builds when Minecraft updates.
+* **Official Mojang Clients**: Undergo full cryptographic verification (RSA challenge, AES-CFB8 Netty ciphers, and Mojang `hasJoined` session query) for seamless auto-login with their real Mojang UUID.
+* **Cracked Impostors**: If a cracked launcher attempts to connect using an official Mojang username, it fails the cryptographic challenge and is immediately kicked.
+* **Cracked Players**: Genuine cracked players authenticate through Paper's native modal dialogs without loading chunks or ticking entities.
 
 ---
 
@@ -10,42 +12,42 @@ No ProtocolLib, no packet hacks, and no waiting for third-party dev builds when 
 
 ```mermaid
 flowchart TD
-    A["Player Connects (Pre-Join)"] --> B{"Client Type"}
+    A["Player Connects (LOGIN_START)"] --> B{"Client Type"}
 
     %% Bedrock Branch
     B -- "Bedrock / '.' Prefix" --> C{"Valid Floodgate / Xbox Live?"}
     C -- "Yes" --> D["Auto-Login (Bedrock)"]
-    C -- "No (Dot Spoof)" --> K1["Kick: Dot Spoofing"]
+    C -- "No (Dot Spoof)" --> K1["Kick: Dot Spoofing Denied"]
 
     %% Java Branch
-    B -- "Java Client" --> E{"Account Auth Type"}
+    B -- "Java Client" --> E{"Account Status & Mojang API"}
 
-    %% Premium Branch
-    E -- "Registered PREMIUM" --> F{"Verified Mojang IP / Session?"}
-    F -- "Yes" --> G["Auto-Login (Mojang Premium)"]
-    F -- "No (Cracked Attempt)" --> K2["Kick: Cracked Logins Forbidden"]
+    %% Premium Branch (Cryptographic challenge)
+    E -- "Registered PREMIUM or Mojang Account" --> F["Server sends RSA Encryption Request Challenge"]
+    F --> G{"Client solves challenge & Mojang hasJoined?"}
+    G -- "Yes (Official Mojang Client)" --> H["Install AES/CFB8 Netty Ciphers"]
+    H --> I["Auto-Login with Mojang UUID"]
+    G -- "No (Cracked Launcher / Impostor)" --> K2["Kick: Cracked Logins Forbidden"]
 
     %% Cracked Branch
-    E -- "Registered CRACKED" --> H{"Valid IP Session?"}
-    H -- "Yes" --> I["Session Restored"]
-    H -- "No" --> J["Paper Login Dialog"]
-    J --> J1{"Password Correct?"}
-    J1 -- "Yes" --> M["Allow In & Spawn World"]
-    J1 -- "No / Timeout" --> K3["Kick: Invalid Password"]
+    E -- "Registered CRACKED" --> J{"Valid IP Session?"}
+    J -- "Yes" --> S1["Session Restored"]
+    J -- "No" --> P1["Paper Login Dialog"]
+    P1 --> V1{"Password Correct?"}
+    V1 -- "Yes" --> M["Allow In & Spawn World"]
+    V1 -- "No / Timeout" --> K3["Kick: Invalid Password"]
 
-    %% Unregistered Branch
-    E -- "Unregistered Account" --> L{"Mojang API Auto-Detect"}
-    L -- "Paid Account (HTTP 200)" --> L1["Register as PREMIUM"] --> G
-    L -- "Not Premium (HTTP 404/204)" --> N{"Registration Surge Active?"}
+    %% Unregistered Non-Premium
+    E -- "Unregistered Cracked Account" --> N{"Registration Surge Active?"}
     N -- "Yes" --> O["In-Dialog Queue"]
-    N -- "No" --> P["Paper Register Dialog"]
-    P --> P1{"Reaction >800ms & Valid Passwords?"}
-    P1 -- "Yes" --> Q["Save CRACKED Account"] --> M
-    P1 -- "No (Bot Submission)" --> K4["Kick: Automated Submission"]
+    N -- "No" --> P2["Paper Register Dialog"]
+    P2 --> V2{"Valid Password & Non-Bot?"}
+    V2 -- "Yes" --> Q["Save as CRACKED"] --> M
+    V2 -- "No" --> K4["Kick: Invalid Registration"]
 
     D --> M
-    G --> M
     I --> M
+    S1 --> M
 ```
 
 ---

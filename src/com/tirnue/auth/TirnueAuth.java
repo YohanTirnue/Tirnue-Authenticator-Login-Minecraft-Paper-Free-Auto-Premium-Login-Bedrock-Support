@@ -12,6 +12,8 @@ import com.tirnue.auth.storage.AuthMeImporter;
 import com.tirnue.auth.storage.DatabaseManager;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
+import com.tirnue.auth.packet.LoginEncryptionPacketListener;
+import com.tirnue.auth.packet.MojangSessionVerifier;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
@@ -25,6 +27,8 @@ public class TirnueAuth extends JavaPlugin {
     private DatabaseManager databaseManager;
     private SessionManager sessionManager;
     private MojangService mojangService;
+    private MojangSessionVerifier mojangSessionVerifier;
+    private LoginEncryptionPacketListener loginEncryptionPacketListener;
     private RegistrationSurgeManager registrationSurgeManager;
     private AuthMeImporter authMeImporter;
     private PreJoinDialogManager preJoinDialogManager;
@@ -65,6 +69,20 @@ public class TirnueAuth extends JavaPlugin {
         // 4. Register Listeners
         BedrockAuthListener bedrockListener = new BedrockAuthListener(this, databaseManager, sessionManager);
         getServer().getPluginManager().registerEvents(bedrockListener, this);
+
+        // 4b. PacketEvents Mojang Session Encryption (Online-Mode cryptographic challenge in offline mode)
+        if (getServer().getPluginManager().isPluginEnabled("packetevents")) {
+            try {
+                mojangSessionVerifier = new MojangSessionVerifier(this, getLogger());
+                loginEncryptionPacketListener = new LoginEncryptionPacketListener(this, databaseManager, mojangService, mojangSessionVerifier);
+                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().registerListener(loginEncryptionPacketListener);
+                getLogger().info("Successfully initialized PacketEvents Mojang session encryption listener!");
+            } catch (Throwable t) {
+                getLogger().log(Level.SEVERE, "Failed to initialize PacketEvents encryption listener!", t);
+            }
+        } else {
+            getLogger().warning("PacketEvents plugin not found! Offline-mode Mojang cryptographic verification will be inactive.");
+        }
 
         PlayerProtectionListener protectionListener = new PlayerProtectionListener(this, databaseManager, sessionManager, mojangService);
         getServer().getPluginManager().registerEvents(protectionListener, this);
@@ -113,6 +131,11 @@ public class TirnueAuth extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (loginEncryptionPacketListener != null) {
+            try {
+                com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().unregisterListener(loginEncryptionPacketListener);
+            } catch (Throwable ignored) {}
+        }
         if (sessionManager != null) {
             sessionManager.reload();
         }
@@ -132,6 +155,10 @@ public class TirnueAuth extends JavaPlugin {
 
     public MojangService getMojangService() {
         return mojangService;
+    }
+
+    public MojangSessionVerifier getMojangSessionVerifier() {
+        return mojangSessionVerifier;
     }
 
     public void applyMojangConfig() {

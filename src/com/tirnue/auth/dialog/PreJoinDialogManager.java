@@ -116,15 +116,10 @@ public class PreJoinDialogManager implements Listener {
             UserAccount acc = accOpt.get();
             if (acc.getAuthType() == UserAccount.AuthType.PREMIUM) {
                 if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
-                    boolean ipBinding = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
-                    if (ipBinding) {
-                        String storedIp = acc.getIp();
-                        if (storedIp != null && !storedIp.isEmpty() && !storedIp.equalsIgnoreCase(clientIp)) {
-                            // IP mismatch on bound premium account! Do not skip dialog (triggers premium-cracked-kick)
-                            return false;
-                        }
+                    // Only skip dialog if client was cryptographically verified by Mojang session server
+                    if (plugin.getMojangSessionVerifier() != null && plugin.getMojangSessionVerifier().isVerified(username)) {
+                        return true;
                     }
-                    return true;
                 }
                 return false;
             } else if (acc.getAuthType() == UserAccount.AuthType.CRACKED) {
@@ -138,8 +133,7 @@ public class PreJoinDialogManager implements Listener {
 
         // 3. New account: auto-detect Mojang Premium
         if (plugin.getConfig().getBoolean("mojang.enabled", true) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
-            Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
-            if (prof.isPresent() && prof.get().isPremium()) {
+            if (plugin.getMojangSessionVerifier() != null && plugin.getMojangSessionVerifier().isVerified(username)) {
                 return true;
             }
         }

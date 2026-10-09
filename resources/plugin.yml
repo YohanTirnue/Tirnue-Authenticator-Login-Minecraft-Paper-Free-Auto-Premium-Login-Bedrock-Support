@@ -6,6 +6,7 @@ author: Tirnue
 description: Unified all-in-one authentication engine (Password, Mojang Online-Mode Auto-Login, Bedrock Floodgate Auto-Login)
 
 softdepend:
+  - packetevents
   - floodgate
   - PlaceholderAPI
 

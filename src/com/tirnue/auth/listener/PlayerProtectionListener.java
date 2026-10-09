@@ -76,31 +76,12 @@ public class PlayerProtectionListener implements Listener {
             // 1. Mojang Premium Auto-login (Official accounts get highest priority)
             if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
                 Optional<UserAccount> accOpt = db.getUser(name);
-                boolean isPrem = false;
-                UUID premUuid = null;
+                UUID verifiedMojangUuid = (plugin.getMojangSessionVerifier() != null)
+                        ? plugin.getMojangSessionVerifier().getVerifiedUuid(name)
+                        : null;
 
-                if (accOpt.isPresent()) {
-                    if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
-                        boolean ipBinding = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
-                        String storedIp = accOpt.get().getIp();
-                        if (ipBinding && storedIp != null && !storedIp.isEmpty() && !storedIp.equalsIgnoreCase(ip)) {
-                            // IP mismatch on bound premium account! Do not auto-login!
-                            isPrem = false;
-                        } else {
-                            isPrem = true;
-                            premUuid = accOpt.get().getUuid();
-                        }
-                    }
-                } else if (plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
-                    Optional<MojangService.CachedMojangProfile> p = mojangService.getOrFetchProfile(name);
-                    if (p.isPresent() && p.get().isPremium()) {
-                        isPrem = true;
-                        premUuid = p.get().getUuid();
-                    }
-                }
-
-                if (isPrem) {
-                    final UUID finalUuid = premUuid;
+                if (verifiedMojangUuid != null) {
+                    final UUID finalUuid = verifiedMojangUuid;
                     final boolean isExisting = accOpt.isPresent();
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         if (player.isOnline()) {
@@ -113,7 +94,7 @@ public class PlayerProtectionListener implements Listener {
                     if (!isExisting) {
                         UserAccount newAcc = new UserAccount(
                                 name,
-                                finalUuid != null ? finalUuid : player.getUniqueId(),
+                                finalUuid,
                                 "$PREMIUM$",
                                 ip,
                                 System.currentTimeMillis(),
@@ -129,7 +110,7 @@ public class PlayerProtectionListener implements Listener {
                         if (acc.getAuthType() != UserAccount.AuthType.PREMIUM) {
                             acc.setAuthType(UserAccount.AuthType.PREMIUM);
                         }
-                        if (finalUuid != null) acc.setUuid(finalUuid);
+                        acc.setUuid(finalUuid);
                         db.saveUser(acc);
                     }
                     return;
