@@ -79,10 +79,12 @@ public class PlayerProtectionListener implements Listener {
                 boolean isPrem = false;
                 UUID premUuid = null;
 
-                if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
-                    isPrem = true;
-                    premUuid = accOpt.get().getUuid();
-                } else if ((!accOpt.isPresent() || !accOpt.get().isManualOverride()) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+                if (accOpt.isPresent()) {
+                    if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+                        isPrem = true;
+                        premUuid = accOpt.get().getUuid();
+                    }
+                } else if (plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
                     Optional<MojangService.CachedMojangProfile> p = mojangService.getOrFetchProfile(name);
                     if (p.isPresent() && p.get().isPremium()) {
                         isPrem = true;

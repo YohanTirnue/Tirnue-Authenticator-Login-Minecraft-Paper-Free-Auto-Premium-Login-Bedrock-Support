@@ -114,10 +114,16 @@ public class PreJoinDialogManager implements Listener {
         // 3. Mojang Premium check
         if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
             Optional<UserAccount> accOpt = db.getUser(username);
-            if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
-                return true;
-            }
-            if ((!accOpt.isPresent() || !accOpt.get().isManualOverride()) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+            if (accOpt.isPresent()) {
+                if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+                    return true;
+                }
+                // If account exists and is CRACKED, strictly enforce dialog
+                if (accOpt.get().getAuthType() == UserAccount.AuthType.CRACKED) {
+                    return false;
+                }
+            } else if (plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+                // Completely new account: check if it's an official Mojang account
                 Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
                 if (prof.isPresent() && prof.get().isPremium()) {
                     return true;
