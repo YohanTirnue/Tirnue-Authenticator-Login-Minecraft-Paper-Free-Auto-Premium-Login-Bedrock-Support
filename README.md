@@ -6,10 +6,54 @@ No ProtocolLib, no packet hacks, and no waiting for third-party dev builds when 
 
 ---
 
+## Authentication Flow
+
+```mermaid
+flowchart TD
+    A["Player Connects (Pre-Join)"] --> B{"Client Type"}
+
+    %% Bedrock Branch
+    B -- "Bedrock / '.' Prefix" --> C{"Valid Floodgate / Xbox Live?"}
+    C -- "Yes" --> D["Auto-Login (Bedrock)"]
+    C -- "No (Dot Spoof)" --> K1["Kick: Dot Spoofing"]
+
+    %% Java Branch
+    B -- "Java Client" --> E{"Account Auth Type"}
+
+    %% Premium Branch
+    E -- "Registered PREMIUM" --> F{"Verified Mojang IP / Session?"}
+    F -- "Yes" --> G["Auto-Login (Mojang Premium)"]
+    F -- "No (Cracked Attempt)" --> K2["Kick: Cracked Logins Forbidden"]
+
+    %% Cracked Branch
+    E -- "Registered CRACKED" --> H{"Valid IP Session?"}
+    H -- "Yes" --> I["Session Restored"]
+    H -- "No" --> J["Paper Login Dialog"]
+    J --> J1{"Password Correct?"}
+    J1 -- "Yes" --> M["Allow In & Spawn World"]
+    J1 -- "No / Timeout" --> K3["Kick: Invalid Password"]
+
+    %% Unregistered Branch
+    E -- "Unregistered Account" --> L{"Mojang API Auto-Detect"}
+    L -- "Paid Account (HTTP 200)" --> L1["Register as PREMIUM"] --> G
+    L -- "Not Premium (HTTP 404/204)" --> N{"Registration Surge Active?"}
+    N -- "Yes" --> O["In-Dialog Queue"]
+    N -- "No" --> P["Paper Register Dialog"]
+    P --> P1{"Reaction >800ms & Valid Passwords?"}
+    P1 -- "Yes" --> Q["Save CRACKED Account"] --> M
+    P1 -- "No (Bot Submission)" --> K4["Kick: Automated Submission"]
+
+    D --> M
+    G --> M
+    I --> M
+```
+
+---
+
 ## Features
 
 * **Pre-Join Dialogs**: Cracked players must log in or register via Paper's native dialog screen (`io.papermc.paper.dialog.Dialog`). They never spawn into the world without authenticating.
-* **Mojang Auto-Login**: Paid Java accounts bypass passwords automatically. If a premium player joins from an unrecognized IP, the server challenges them for a backup password before granting access.
+* **Mojang Auto-Login & Strict Lockout**: Official Mojang accounts bypass passwords automatically. Once registered as premium, any cracked attempt to log into that username is instantly kicked with zero password prompts.
 * **Bedrock Support**: Bedrock players log in automatically through Floodgate and Xbox Live. Java clients attempting to spoof `.` usernames are kicked on pre-login.
 * **Anti-Bot Protection**: Form submissions faster than 800ms are kicked as bots. Rapid registration bursts automatically route new accounts into an in-dialogue queue.
 * **Mojang API Throttling**: A token-bucket limiter keeps outbound Mojang lookups under rate limits to prevent IP bans and connection stalls.
