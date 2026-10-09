@@ -110,37 +110,43 @@ public class PreJoinDialogManager implements Listener {
             }
         }
 
-        // 2. IP Session check
-        if (clientIp != null && db.isSessionValid(username, clientIp)) {
-            return true;
-        }
-
-        // 3. Mojang Premium check
-        if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
-            Optional<UserAccount> accOpt = db.getUser(username);
-            if (accOpt.isPresent()) {
-                if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+        // 2. Account check: Premium vs Cracked
+        Optional<UserAccount> accOpt = db.getUser(username);
+        if (accOpt.isPresent()) {
+            UserAccount acc = accOpt.get();
+            if (acc.getAuthType() == UserAccount.AuthType.PREMIUM) {
+                if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
                     boolean ipBinding = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
                     if (ipBinding) {
-                        String storedIp = accOpt.get().getIp();
+                        String storedIp = acc.getIp();
                         if (storedIp != null && !storedIp.isEmpty() && !storedIp.equalsIgnoreCase(clientIp)) {
-                            // IP changed! Cannot skip dialog. Must verify password.
+                            // IP mismatch on bound premium account! Do not skip dialog (triggers premium-cracked-kick)
                             return false;
                         }
                     }
                     return true;
                 }
-                // If account exists and is CRACKED, strictly enforce dialog
-                if (accOpt.get().getAuthType() == UserAccount.AuthType.CRACKED) {
-                    return false;
-                }
-            } else if (plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
-                // Completely new account: check if it's an official Mojang account
-                Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
-                if (prof.isPresent() && prof.get().isPremium()) {
+                return false;
+            } else if (acc.getAuthType() == UserAccount.AuthType.CRACKED) {
+                // IP Session check strictly reserved for registered cracked accounts
+                if (clientIp != null && db.isSessionValid(username, clientIp)) {
                     return true;
                 }
+                return false;
             }
+        }
+
+        // 3. New account: auto-detect Mojang Premium
+        if (plugin.getConfig().getBoolean("mojang.enabled", true) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+            Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
+            if (prof.isPresent() && prof.get().isPremium()) {
+                return true;
+            }
+        }
+
+        // 4. Fallback IP session for unclassified accounts
+        if (clientIp != null && db.isSessionValid(username, clientIp)) {
+            return true;
         }
 
         return false;
@@ -163,6 +169,16 @@ public class PreJoinDialogManager implements Listener {
             // Player skips the configuration dialog (Mojang Premium, Bedrock, or valid session).
             // Let them proceed directly into the game where PlayerProtectionListener or BedrockAuthListener
             // will auto-authenticate them with the proper mojang-welcome message.
+            return;
+        }
+
+        // STRICT PREMIUM CHECK:
+        // Accounts registered as PREMIUM must NEVER be shown a password/login dialog!
+        // Any cracked/unverified login attempts on a premium username are kicked immediately!
+        Optional<UserAccount> accOpt = db.getUser(name);
+        if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+            String kickMsg = plugin.getMessage("premium-cracked-kick", "ꑬ &cᴛʜɪꜱ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀꜱ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘʀᴇᴍɪᴜᴍ. ᴄʀᴀᴄᴋᴇᴅ ʟᴏɢɪɴꜱ ᴀʀᴇ ɴᴏᴛ ᴘᴇʀᴍɪᴛᴛᴇᴅ.");
+            conn.disconnect(Component.text(plugin.stripColor(plugin.color(kickMsg))));
             return;
         }
 
@@ -291,10 +307,10 @@ public class PreJoinDialogManager implements Listener {
                 }
 
                 UserAccount user = userOpt.get();
-                if ("$PREMIUM$".equals(user.getPasswordHash())) {
+                if (user.getAuthType() == UserAccount.AuthType.PREMIUM || "$PREMIUM$".equals(user.getPasswordHash()) || "$".equals(user.getPasswordHash())) {
                     future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK,
-                            plugin.getMessage("premium-ip-unverified",
-                                    "&cᴛʜɪꜱ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʙᴏᴜɴᴅ ᴛᴏ ᴀ ᴅɪꜰꜰᴇʀᴇɴᴛ ɪᴘ ᴀɴᴅ ʜᴀꜱ ɴᴏ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜱᴇᴛ.")));
+                            plugin.getMessage("premium-cracked-kick",
+                                    "ꑬ &cᴛʜɪꜱ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀꜱ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘʀᴇᴍɪᴜᴍ. ᴄʀᴀᴄᴋᴇᴅ ʟᴏɢɪɴꜱ ᴀʀᴇ ɴᴏᴛ ᴘᴇʀᴍɪᴛᴛᴇᴅ.")));
                     return;
                 }
 

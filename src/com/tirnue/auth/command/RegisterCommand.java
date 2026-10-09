@@ -11,6 +11,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Optional;
+
 public class RegisterCommand implements CommandExecutor {
     private final TirnueAuth plugin;
     private final DatabaseManager db;
@@ -32,9 +34,16 @@ public class RegisterCommand implements CommandExecutor {
         Player player = (Player) sender;
         if (sessionManager.isAuthenticated(player.getUniqueId())) {
             plugin.sendMessage(player, "already-logged-in", "ꑫ &aʏᴏᴜ ᴀʀᴇ ᴀʟʀᴇᴀᴅʏ ʟᴏɢɢᴇᴅ ɪɴ!");
-        } else {
-            plugin.sendMessage(player, "login-disabled", "ꑬ &cɪɴ-ɢᴀᴍᴇ /ʀᴇɢɪꜱᴛᴇʀ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ. ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ɪꜱ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+            return true;
         }
+
+        Optional<UserAccount> accOpt = db.getUser(player.getName());
+        if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+            plugin.sendMessage(player, "already-premium", "ꑫ &aʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴠᴇʀɪꜰɪᴇᴅ ᴀꜱ ᴀɴ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴀᴄᴄᴏᴜɴᴛ.");
+            return true;
+        }
+
+        plugin.sendMessage(player, "login-disabled", "ꑬ &cɪɴ-ɢᴀᴍᴇ /ʀᴇɢɪꜱᴛᴇʀ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ. ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ɪꜱ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
         return true;
     }
 }

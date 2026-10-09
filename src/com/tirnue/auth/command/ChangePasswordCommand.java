@@ -37,6 +37,12 @@ public class ChangePasswordCommand implements CommandExecutor {
             return true;
         }
 
+        Optional<UserAccount> checkOpt = db.getUser(player.getName());
+        if (checkOpt.isPresent() && checkOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+            plugin.sendMessage(player, "premium-changepassword-disabled", "ꑬ &cᴛʜɪꜱ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀꜱ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘʀᴇᴍɪᴜᴍ. ᴘᴀꜱꜱᴡᴏʀᴅ ᴄʜᴀɴɢᴇ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ.");
+            return true;
+        }
+
         if (args.length < 1) {
             plugin.sendMessage(player, "changepassword-usage", "ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴏʟᴅᴘᴀꜱꜱᴡᴏʀᴅ> <ɴᴇᴡᴘᴀꜱꜱᴡᴏʀᴅ>", "{label}", label);
             return true;

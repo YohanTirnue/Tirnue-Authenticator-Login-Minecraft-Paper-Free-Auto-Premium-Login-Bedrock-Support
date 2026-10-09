@@ -101,19 +101,16 @@ public class PlayerProtectionListener implements Listener {
 
                 if (isPrem) {
                     final UUID finalUuid = premUuid;
-                    final boolean hasNoBackupPass = !accOpt.isPresent() || "$PREMIUM$".equals(accOpt.get().getPasswordHash());
+                    final boolean isExisting = accOpt.isPresent();
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         if (player.isOnline()) {
                             sessionManager.authenticate(player, null);
                             plugin.sendMessage(player, "mojang-welcome", "ꑫ &aʏᴏᴜ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ᴛʜʀᴏᴜɢʜ ᴍᴏᴊᴀɴɢ, ʏᴏᴜ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʟᴏɢɢᴇᴅ ɪɴ!");
-                            if (plugin.getConfig().getBoolean("mojang.premium-ip-binding", true) && hasNoBackupPass) {
-                                plugin.sendMessage(player, "premium-set-password-tip", "ꑪ &7[ꜱᴇᴄᴜʀɪᴛʏ] &8ᴜꜱᴇ &b/changepassword <password> &8ᴛᴏ ꜱᴇᴛ ᴀ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜰᴏʀ ɴᴇᴡ ɪᴘꜱ.");
-                            }
                         }
                     });
 
                     // Ensure user is saved/updated in database as PREMIUM with Mojang UUID
-                    if (!accOpt.isPresent()) {
+                    if (!isExisting) {
                         UserAccount newAcc = new UserAccount(
                                 name,
                                 finalUuid != null ? finalUuid : player.getUniqueId(),
@@ -125,12 +122,26 @@ public class PlayerProtectionListener implements Listener {
                                 false
                         );
                         db.saveUser(newAcc);
-                    } else if (accOpt.get().getAuthType() != UserAccount.AuthType.PREMIUM) {
+                    } else {
                         UserAccount acc = accOpt.get();
-                        acc.setAuthType(UserAccount.AuthType.PREMIUM);
+                        acc.setIp(ip);
+                        acc.setLastLogin(System.currentTimeMillis());
+                        if (acc.getAuthType() != UserAccount.AuthType.PREMIUM) {
+                            acc.setAuthType(UserAccount.AuthType.PREMIUM);
+                        }
                         if (finalUuid != null) acc.setUuid(finalUuid);
                         db.saveUser(acc);
                     }
+                    return;
+                } else if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+                    // Registered PREMIUM account failed verification!
+                    // Cracked logins on premium accounts are strictly rejected!
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            String kickMsg = plugin.getMessage("premium-cracked-kick", "ꑬ &cᴛʜɪꜱ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀꜱ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘʀᴇᴍɪᴜᴍ. ᴄʀᴀᴄᴋᴇᴅ ʟᴏɢɪɴꜱ ᴀʀᴇ ɴᴏᴛ ᴘᴇʀᴍɪᴛᴛᴇᴅ.");
+                            player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+                        }
+                    });
                     return;
                 }
             }

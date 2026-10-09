@@ -34,9 +34,16 @@ public class LoginCommand implements CommandExecutor {
         Player player = (Player) sender;
         if (sessionManager.isAuthenticated(player.getUniqueId())) {
             plugin.sendMessage(player, "already-logged-in", "ꑫ &aʏᴏᴜ ᴀʀᴇ ᴀʟʀᴇᴀᴅʏ ʟᴏɢɢᴇᴅ ɪɴ!");
-        } else {
-            plugin.sendMessage(player, "login-disabled", "ꑬ &cɪɴ-ɢᴀᴍᴇ /ʟᴏɢɪɴ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ. ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ɪꜱ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+            return true;
         }
+
+        Optional<UserAccount> accOpt = db.getUser(player.getName());
+        if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+            plugin.sendMessage(player, "premium-login-disabled", "ꑬ &cᴛʜɪꜱ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀꜱ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘʀᴇᴍɪᴜᴍ. ᴘᴀꜱꜱᴡᴏʀᴅ ʟᴏɢɪɴ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ.");
+            return true;
+        }
+
+        plugin.sendMessage(player, "login-disabled", "ꑬ &cɪɴ-ɢᴀᴍᴇ /ʟᴏɢɪɴ ɪꜱ ᴅɪꜱᴀʙʟᴇᴅ. ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ɪꜱ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
         return true;
     }
 }
