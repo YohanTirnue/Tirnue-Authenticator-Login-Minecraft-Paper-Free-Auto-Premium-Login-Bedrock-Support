@@ -1,0 +1,93 @@
+package com.tirnue.auth.command;
+
+import com.tirnue.auth.TirnueAuth;
+import com.tirnue.auth.security.PasswordSecurity;
+import com.tirnue.auth.security.SessionManager;
+import com.tirnue.auth.storage.DatabaseManager;
+import com.tirnue.auth.storage.UserAccount;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+
+import java.util.Optional;
+
+public class ChangePasswordCommand implements CommandExecutor {
+    private final TirnueAuth plugin;
+    private final DatabaseManager db;
+    private final SessionManager sessionManager;
+
+    public ChangePasswordCommand(TirnueAuth plugin, DatabaseManager db, SessionManager sessionManager) {
+        this.plugin = plugin;
+        this.db = db;
+        this.sessionManager = sessionManager;
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            plugin.sendMessage(sender, "only-players", "&cᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴇxᴇᴄᴜᴛᴇᴅ ʙʏ ᴘʟᴀʏᴇʀꜱ ɪɴ-ɢᴀᴍᴇ.");
+            return true;
+        }
+
+        Player player = (Player) sender;
+        if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+            plugin.sendMessage(player, "not-logged-in", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ʙᴇ ʟᴏɢɢᴇᴅ ɪɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.");
+            return true;
+        }
+
+        if (args.length < 2) {
+            plugin.sendMessage(player, "changepassword-usage", "ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴏʟᴅᴘᴀꜱꜱᴡᴏʀᴅ> <ɴᴇᴡᴘᴀꜱꜱᴡᴏʀᴅ>", "{label}", label);
+            return true;
+        }
+
+        String oldPass = args[0];
+        String newPass = args[1];
+
+        int minLen = plugin.getConfig().getInt("security.min-password-length", 4);
+        int maxLen = plugin.getConfig().getInt("security.max-password-length", 64);
+
+        if (newPass.length() < minLen) {
+            plugin.sendMessage(player, "password-too-short", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ɪꜱ ᴛᴏᴏ ꜱʜᴏʀᴛ. ᴍɪɴɪᴍᴜᴍ ʟᴇɴɢᴛʜ ɪꜱ &f{min} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
+                    "{min}", String.valueOf(minLen));
+            return true;
+        }
+
+        if (newPass.length() > maxLen) {
+            plugin.sendMessage(player, "password-too-long", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ᴇxᴄᴇᴇᴅꜱ ᴍᴀxɪᴍᴜᴍ ʟᴇɴɢᴛʜ ᴏꜰ &f{max} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
+                    "{max}", String.valueOf(maxLen));
+            return true;
+        }
+
+        String name = player.getName();
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Optional<UserAccount> userOpt = db.getUser(name);
+            if (!userOpt.isPresent()) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    plugin.sendMessage(player, "not-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
+                });
+                return;
+            }
+
+            UserAccount user = userOpt.get();
+            if (!PasswordSecurity.checkPassword(oldPass, user.getPasswordHash())) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    plugin.sendMessage(player, "old-password-wrong", "ꑬ &cʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘᴀꜱꜱᴡᴏʀᴅ ᴡᴀꜱ ɪɴᴄᴏʀʀᴇᴄᴛ.");
+                });
+                return;
+            }
+
+            String newHash = PasswordSecurity.hashPassword(newPass);
+            user.setPasswordHash(newHash);
+            db.saveUser(user);
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.sendMessage(player, "password-changed", "ꑫ &aᴘᴀꜱꜱᴡᴏʀᴅ ᴄʜᴀɴɢᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!");
+            });
+        });
+
+        return true;
+    }
+}

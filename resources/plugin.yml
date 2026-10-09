@@ -1,0 +1,56 @@
+name: TirnueAuth
+version: 1.0.0
+main: com.tirnue.auth.TirnueAuth
+api-version: '1.20'
+author: Tirnue
+description: Unified all-in-one authentication engine (Password, Mojang Online-Mode Auto-Login, Bedrock Floodgate Auto-Login)
+
+softdepend:
+  - packetevents
+  - floodgate
+  - PlaceholderAPI
+
+commands:
+  login:
+    description: Log into your account
+    aliases: [l, log]
+    permission: tirnue.auth.user
+    default: true
+  register:
+    description: Register your account with a password
+    aliases: [reg]
+    permission: tirnue.auth.user
+    default: true
+  changepassword:
+    description: Change your current account password
+    aliases: [cpw, changepw]
+    permission: tirnue.auth.user
+    default: true
+  logout:
+    description: Log out of your current session
+    aliases: [unlog]
+    permission: tirnue.auth.user
+    default: true
+  premium:
+    description: Check or enable official Mojang online-mode auto-login
+    aliases: [prem, tpremium]
+    permission: tirnue.auth.user
+    default: true
+  cracked:
+    description: Switch your account to password-protected offline mode
+    aliases: [unpremium, tcracked]
+    permission: tirnue.auth.user
+    default: true
+  tauth:
+    description: TirnueAuth administrative management command
+    aliases: [tirnueauth, auth]
+    permission: tirnue.auth.admin
+    default: op
+
+permissions:
+  tirnue.auth.user:
+    description: Standard player authentication commands
+    default: true
+  tirnue.auth.admin:
+    description: Administrative management commands
+    default: op

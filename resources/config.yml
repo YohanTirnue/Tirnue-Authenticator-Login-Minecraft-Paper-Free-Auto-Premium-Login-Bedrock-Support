@@ -1,0 +1,126 @@
+# ==============================================================================
+#                             TirnueAuth Configuration
+#       All-in-One Authentication Engine: Passwords, Mojang & Bedrock Auto-Login
+# ==============================================================================
+
+# Chat message prefix (supports '&' codes and hex '&#55cdfc')
+# Even the [TIRNUE] tag is completely configurable here or directly inside individual raw messages!
+# Set to "" for a clean slate with texture-pack glyph icons
+prefix: ""
+
+security:
+  min-password-length: 4
+  max-password-length: 64
+  # Minutes to remember a player's IP so they don't have to re-enter password on quick reconnect
+  session-timeout-minutes: 30
+  # Seconds before an unauthenticated player is kicked
+  login-timeout-seconds: 120
+  # Maximum failed attempts before disconnect
+  max-failed-attempts: 5
+  # Maximum accounts registered per IP address
+  max-registrations-per-ip: 4
+
+mojang:
+  # Enable automatic Mojang online-mode cryptographic session auto-login
+  enabled: true
+  auto-detect: true
+  # Cache validity for Mojang profile API lookups in hours
+  cache-expiry-hours: 72
+
+bedrock:
+  # Enable automatic Floodgate Bedrock auto-login via Xbox Live
+  enabled: true
+  auto-login: true
+  # Kick any Java player trying to use '.' prefix to impersonate a Bedrock player
+  prevent-dot-spoofing: true
+
+limbo:
+  # Apply blindness effect while player is unauthenticated
+  apply-blindness: true
+  # Block movement while unauthenticated
+  freeze-movement: true
+
+# Modern Paper pre-join modal dialog UI (prompts password before player enters world)
+dialog:
+  enabled: true
+  allow-close-with-escape: false
+  # When true, cancelling the pre-join dialog kicks the player; when false, lets them into in-game limbo
+  login-cancel-kicks: true
+  register-cancel-kicks: false
+  login:
+    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʟᴏɢɪɴ"
+    body: "&7ᴘʟᴇᴀꜱᴇ ᴇɴᴛᴇʀ ʏᴏᴜʀ ᴘᴀꜱꜱᴡᴏʀᴅ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ."
+    password-label: "ᴘᴀꜱꜱᴡᴏʀᴅ"
+    submit-button: "&aʟᴏɢɪɴ"
+    cancel-button: "&cᴄᴀɴᴄᴇʟ"
+  register:
+    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &bʀᴇɢɪꜱᴛᴇʀ"
+    body: "&7ᴄʀᴇᴀᴛᴇ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴛᴏ ꜱᴛᴀʀᴛ ᴘʟᴀʏɪɴɢ ᴏɴ ᴛʜɪꜱ ꜱᴇʀᴠᴇʀ."
+    password-label: "ᴘᴀꜱꜱᴡᴏʀᴅ"
+    confirm-label: "ᴄᴏɴꜰɪʀᴍ ᴘᴀꜱꜱᴡᴏʀᴅ"
+    submit-button: "&aʀᴇɢɪꜱᴛᴇʀ"
+    cancel-button: "&cᴄᴀɴᴄᴇʟ"
+
+# Chat reminders for unauthenticated players in limbo (seconds interval)
+reminder-interval-seconds: 5
+
+messages:
+  # Core player prompts & login
+  login-prompt: 'ꑪ &bᴘʟᴇᴀꜱᴇ ʟᴏɢ ɪɴ: &f/login <ᴘᴀꜱꜱᴡᴏʀᴅ>'
+  register-prompt: 'ꑭ &eᴘʟᴇᴀꜱᴇ ʀᴇɢɪꜱᴛᴇʀ: &f/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>'
+  login-success: 'ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!'
+  register-success: 'ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!'
+  session-restored: 'ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!'
+  logout: 'ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.'
+  already-logged-in: 'ꑫ &aʏᴏᴜ ᴀʀᴇ ᴀʟʀᴇᴀᴅʏ ʟᴏɢɢᴇᴅ ɪɴ!'
+  not-logged-in: 'ꑬ &cʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ʟᴏɢɢᴇᴅ ɪɴ!'
+
+  # Command usages
+  login-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴘᴀꜱꜱᴡᴏʀᴅ>'
+  register-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴘᴀꜱꜱᴡᴏʀᴅ> [ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ]'
+  changepassword-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴏʟᴅᴘᴀꜱꜱᴡᴏʀᴅ> <ɴᴇᴡᴘᴀꜱꜱᴡᴏʀᴅ>'
+
+  # Errors & validation
+  wrong-password: 'ꑬ &cɪɴᴄᴏʀʀᴇᴄᴛ ᴘᴀꜱꜱᴡᴏʀᴅ! ᴀᴛᴛᴇᴍᴘᴛꜱ ʀᴇᴍᴀɪɴɪɴɢ: &f{remaining}'
+  password-too-short: 'ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ɪꜱ ᴛᴏᴏ ꜱʜᴏʀᴛ. ᴍɪɴɪᴍᴜᴍ ʟᴇɴɢᴛʜ ɪꜱ &f{min} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.'
+  password-too-long: 'ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ᴇxᴄᴇᴇᴅꜱ ᴍᴀxɪᴍᴜᴍ ʟᴇɴɢᴛʜ ᴏꜰ &f{max} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.'
+  passwords-dont-match: 'ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅꜱ ᴅɪᴅ ɴᴏᴛ ᴍᴀᴛᴄʜ, ᴄʜᴇᴄᴋ ᴛʜᴇᴍ ᴀɢᴀɪɴ!'
+  already-registered: 'ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ᴀʟʀᴇᴀᴅʏ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/login <ᴘᴀꜱꜱᴡᴏʀᴅ>&c.'
+  not-registered: 'ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.'
+  max-accounts-exceeded: 'ꑬ &cᴍᴀxɪᴍᴜᴍ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴀᴄᴄᴏᴜɴᴛꜱ ᴘᴇʀ ɪᴘ ᴀᴅᴅʀᴇꜱꜱ ʀᴇᴀᴄʜᴇᴅ (&f{max}&c).'
+  password-changed: 'ꑫ &aᴘᴀꜱꜱᴡᴏʀᴅ ᴄʜᴀɴɢᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!'
+  old-password-wrong: 'ꑬ &cʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘᴀꜱꜱᴡᴏʀᴅ ᴡᴀꜱ ɪɴᴄᴏʀʀᴇᴄᴛ.'
+
+  # Kicks
+  timeout-kick: 'ꑬ &cʟᴏɢɪɴ ᴛɪᴍᴇᴏᴜᴛ ᴇxᴄᴇᴇᴅᴇᴅ, ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ!'
+  max-attempts-kick: 'ꑬ &cᴛᴏᴏ ᴍᴀɴʏ ꜰᴀɪʟᴇᴅ ʟᴏɢɪɴ ᴀᴛᴛᴇᴍᴘᴛꜱ.'
+  dot-spoof-kick: 'ꑬ &cᴀᴄᴄᴇꜱꜱ ᴅᴇɴɪᴇᴅ: ᴏɴʟʏ ᴠᴇʀɪꜰɪᴇᴅ ʙᴇᴅʀᴏᴄᴋ ᴘʟᴀʏᴇʀꜱ ᴄᴀɴ ᴜꜱᴇ ᴛʜᴇ ''.'' ᴘʀᴇꜰɪx.'
+
+  # Cross-platform / Bedrock / Mojang
+  bedrock-welcome: 'ꑫ &aʏᴏᴜ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ᴛʜʀᴏᴜɢʜ ᴍᴏᴊᴀɴɢ, ʏᴏᴜ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʟᴏɢɢᴇᴅ ɪɴ!'
+  bedrock-cannot-toggle: 'ꑭ &eʙᴇᴅʀᴏᴄᴋ ᴀᴄᴄᴏᴜɴᴛꜱ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ ᴠɪᴀ xʙᴏx ʟɪᴠᴇ ᴀɴᴅ ꜰʟᴏᴏᴅɢᴀᴛᴇ!'
+  mojang-welcome: 'ꑫ &aʏᴏᴜ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ᴛʜʀᴏᴜɢʜ ᴍᴏᴊᴀɴɢ, ʏᴏᴜ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʟᴏɢɢᴇᴅ ɪɴ!'
+  already-premium: 'ꑫ &aʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴠᴇʀɪꜰɪᴇᴅ ᴀꜱ ᴀɴ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴀᴄᴄᴏᴜɴᴛ.'
+  premium-success: 'ꑫ &aᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴀᴄᴄᴏᴜɴᴛ ᴠᴇʀɪꜰɪᴇᴅ! ᴀᴜᴛᴏ-ʟᴏɢɪɴ ɪꜱ ɴᴏᴡ ᴀᴄᴛɪᴠᴇ.'
+  premium-not-found: 'ꑬ &cɴᴏ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘᴀɪᴅ ᴀᴄᴄᴏᴜɴᴛ ꜰᴏᴜɴᴅ ᴡɪᴛʜ ᴜꜱᴇʀɴᴀᴍᴇ: &f{player}&c.'
+  switched-cracked: 'ꑭ &eʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀꜱ ʙᴇᴇɴ ꜱᴡɪᴛᴄʜᴇᴅ ᴛᴏ ᴘᴀꜱꜱᴡᴏʀᴅ ᴍᴏᴅᴇ.'
+
+  # General permission & sender checks
+  only-players: 'ꑬ &cᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴇxᴇᴄᴜᴛᴇᴅ ʙʏ ᴘʟᴀʏᴇʀꜱ ɪɴ-ɢᴀᴍᴇ.'
+  no-permission: 'ꑬ &cʏᴏᴜ ᴅᴏ ɴᴏᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ ᴛᴏ ᴇxᴇᴄᴜᴛᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.'
+
+  # Admin command messages
+  admin-reload-success: 'ꑫ &aᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴀɴᴅ ᴄᴀᴄʜᴇ ʀᴇʟᴏᴀᴅᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!'
+  admin-import-started: 'ꑭ &eꜱᴛᴀʀᴛɪɴɢ ᴀᴜᴛʜᴍᴇ ᴅᴀᴛᴀʙᴀꜱᴇ ɪᴍᴘᴏʀᴛ...'
+  admin-import-success: 'ꑫ &aꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ɪᴍᴘᴏʀᴛᴇᴅ &f{count} &aᴀᴄᴄᴏᴜɴᴛꜱ ꜰʀᴏᴍ ᴀᴜᴛʜᴍᴇ!'
+  admin-check-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} check <ᴘʟᴀʏᴇʀ>'
+  admin-set-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} set <ᴘʟᴀʏᴇʀ> <ᴘʀᴇᴍɪᴜᴍ|ᴄʀᴀᴄᴋᴇᴅ|ʙᴇᴅʀᴏᴄᴋ>'
+  admin-set-invalid-type: 'ꑬ &cɪɴᴠᴀʟɪᴅ ᴛʏᴘᴇ. ᴠᴀʟɪᴅ ᴛʏᴘᴇꜱ: &ePREMIUM, CRACKED, BEDROCK'
+  admin-set-not-registered: 'ꑬ &cᴘʟᴀʏᴇʀ &f{player} &cɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ ɪɴ ᴛʜᴇ ᴅᴀᴛᴀʙᴀꜱᴇ.'
+  admin-set-success: 'ꑫ &aꜱᴇᴛ ᴀᴜᴛʜ ᴍᴏᴅᴇ ꜰᴏʀ &f{player} &aᴛᴏ &b{type}&a.'
+  admin-unregister-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} unregister <ᴘʟᴀʏᴇʀ>'
+  admin-unregister-success: 'ꑮ &dꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴜɴʀᴇɢɪꜱᴛᴇʀᴇᴅ ᴘʟᴀʏᴇʀ &f{player}&d.'
+  admin-forcelogin-usage: 'ꑪ &bᴜꜱᴀɢᴇ: &f/{label} forcelogin <ᴘʟᴀʏᴇʀ>'
+  admin-forcelogin-not-online: 'ꑬ &cᴘʟᴀʏᴇʀ &f{player} &cɪꜱ ɴᴏᴛ ᴄᴜʀʀᴇɴᴛʟʏ ᴏɴʟɪɴᴇ.'
+  admin-forcelogin-target: 'ꑫ &aʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ꜰᴏʀᴄᴇꜰᴜʟʟʏ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ʙʏ ᴀɴ ᴀᴅᴍɪɴɪꜱᴛʀᴀᴛᴏʀ.'
+  admin-forcelogin-admin-success: 'ꑫ &aᴘʟᴀʏᴇʀ &f{player} &aʜᴀꜱ ʙᴇᴇɴ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ.'

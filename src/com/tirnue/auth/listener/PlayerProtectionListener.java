@@ -1,0 +1,290 @@
+package com.tirnue.auth.listener;
+
+import com.tirnue.auth.TirnueAuth;
+import com.tirnue.auth.mojang.MojangService;
+import com.tirnue.auth.security.SessionManager;
+import com.tirnue.auth.storage.DatabaseManager;
+import com.tirnue.auth.storage.UserAccount;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.*;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+public class PlayerProtectionListener implements Listener {
+    private static final Set<String> ALLOWED_COMMANDS = new HashSet<>(Arrays.asList(
+            "login", "l", "log", "register", "reg"
+    ));
+
+    private final TirnueAuth plugin;
+    private final DatabaseManager db;
+    private final SessionManager sessionManager;
+    private final MojangService mojangService;
+
+    public PlayerProtectionListener(TirnueAuth plugin, DatabaseManager db, SessionManager sessionManager, MojangService mojangService) {
+        this.plugin = plugin;
+        this.db = db;
+        this.sessionManager = sessionManager;
+        this.mojangService = mojangService;
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        String name = player.getName();
+
+        // Already authenticated by Bedrock listener?
+        if (sessionManager.isAuthenticated(uuid)) {
+            return;
+        }
+
+        // Bedrock names start with '.'
+        if (name.startsWith(".")) {
+            return;
+        }
+
+        // Pre-authenticated via Paper Pre-Join Dialog?
+        if (sessionManager.consumePreAuthenticated(uuid)) {
+            sessionManager.authenticate(player, null);
+            plugin.sendMessage(player, "login-success", "ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!");
+            return;
+        }
+
+        String ip = player.getAddress() != null ? player.getAddress().getAddress().getHostAddress() : "127.0.0.1";
+
+        // Check async session and mojang premium
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            // 1. Mojang Premium Auto-login (Official accounts get highest priority)
+            if (plugin.getConfig().getBoolean("mojang.enabled", true)) {
+                Optional<UserAccount> accOpt = db.getUser(name);
+                boolean isPrem = false;
+                UUID premUuid = null;
+
+                if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+                    isPrem = true;
+                    premUuid = accOpt.get().getUuid();
+                } else if ((!accOpt.isPresent() || !accOpt.get().isManualOverride()) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
+                    Optional<MojangService.CachedMojangProfile> p = mojangService.getOrFetchProfile(name);
+                    if (p.isPresent() && p.get().isPremium()) {
+                        isPrem = true;
+                        premUuid = p.get().getUuid();
+                    }
+                }
+
+                if (isPrem) {
+                    final UUID finalUuid = premUuid;
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            sessionManager.authenticate(player, null);
+                            plugin.sendMessage(player, "mojang-welcome", "ꑫ &aʏᴏᴜ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ᴛʜʀᴏᴜɢʜ ᴍᴏᴊᴀɴɢ, ʏᴏᴜ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʟᴏɢɢᴇᴅ ɪɴ!");
+                        }
+                    });
+
+                    // Ensure user is saved/updated in database as PREMIUM with Mojang UUID
+                    if (!accOpt.isPresent()) {
+                        UserAccount newAcc = new UserAccount(
+                                name,
+                                finalUuid != null ? finalUuid : player.getUniqueId(),
+                                "$PREMIUM$",
+                                ip,
+                                System.currentTimeMillis(),
+                                System.currentTimeMillis(),
+                                UserAccount.AuthType.PREMIUM,
+                                false
+                        );
+                        db.saveUser(newAcc);
+                    } else if (accOpt.get().getAuthType() != UserAccount.AuthType.PREMIUM) {
+                        UserAccount acc = accOpt.get();
+                        acc.setAuthType(UserAccount.AuthType.PREMIUM);
+                        if (finalUuid != null) acc.setUuid(finalUuid);
+                        db.saveUser(acc);
+                    }
+                    return;
+                }
+            }
+
+            // 2. IP Session Auto-login (for cracked accounts returning on same IP)
+            if (db.isSessionValid(name, ip)) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline()) {
+                        sessionManager.authenticate(player, null);
+                        plugin.sendMessage(player, "session-restored", "ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!");
+                    }
+                });
+                return;
+            }
+
+            // Otherwise, unauthenticated -> enter limbo
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && !sessionManager.isAuthenticated(uuid)) {
+                    sessionManager.startLimbo(player);
+                }
+            });
+        });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        sessionManager.cleanup(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (sessionManager.isAuthenticated(player.getUniqueId())) {
+            return;
+        }
+
+        if (!plugin.getConfig().getBoolean("limbo.freeze-movement", true)) {
+            return;
+        }
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null) return;
+
+        // Allow rotation, freeze XYZ
+        if (from.getX() != to.getX() || from.getY() != to.getY() || from.getZ() != to.getZ()) {
+            Location loc = from.clone();
+            loc.setYaw(to.getYaw());
+            loc.setPitch(to.getPitch());
+            event.setTo(loc);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onAsyncChat(AsyncChatEvent event) {
+        Player player = event.getPlayer();
+        if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+            event.setCancelled(true);
+            sessionManager.sendPrompt(player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
+        Player player = event.getPlayer();
+        String msg = event.getMessage().trim();
+        if (msg.startsWith("/")) {
+            msg = msg.substring(1);
+        }
+
+        String[] parts = msg.split(" ", 2);
+        String label = parts[0].toLowerCase();
+        if (label.contains(":")) {
+            label = label.substring(label.indexOf(":") + 1);
+        }
+
+        if (label.equals("logout") || label.equals("unlog")) {
+            event.setCancelled(true);
+            if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+                plugin.sendMessage(player, "not-logged-in", "ꑬ &cʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ʟᴏɢɢᴇᴅ ɪɴ!");
+                return;
+            }
+            String name = player.getName();
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                db.invalidateSession(name);
+            });
+            sessionManager.cleanup(player);
+            sessionManager.startLimbo(player);
+            plugin.sendMessage(player, "logout", "ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.");
+            return;
+        }
+
+        if (sessionManager.isAuthenticated(player.getUniqueId())) {
+            return;
+        }
+
+        if (!ALLOWED_COMMANDS.contains(label)) {
+            event.setCancelled(true);
+            plugin.sendMessage(player, "not-logged-in", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ʙᴇ ʟᴏɢɢᴇᴅ ɪɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.");
+            sessionManager.sendPrompt(player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (!sessionManager.isAuthenticated(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (!sessionManager.isAuthenticated(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (!sessionManager.isAuthenticated(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onDropItem(PlayerDropItemEvent event) {
+        if (!sessionManager.isAuthenticated(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPickupItem(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player) {
+            if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            // Unauthenticated players take NO damage (invulnerable while logging in)
+            if (!sessionManager.isAuthenticated(player.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        if (event.getDamager() instanceof Player damager) {
+            if (!sessionManager.isAuthenticated(damager.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+        if (event.getEntity() instanceof Player victim) {
+            if (!sessionManager.isAuthenticated(victim.getUniqueId())) {
+                event.setCancelled(true);
+            }
+        }
+    }
+}
