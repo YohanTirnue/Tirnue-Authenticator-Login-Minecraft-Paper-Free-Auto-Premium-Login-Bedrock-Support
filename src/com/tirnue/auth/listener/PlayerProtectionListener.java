@@ -6,6 +6,7 @@ import com.tirnue.auth.security.SessionManager;
 import com.tirnue.auth.storage.DatabaseManager;
 import com.tirnue.auth.storage.UserAccount;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -132,10 +133,11 @@ public class PlayerProtectionListener implements Listener {
                 return;
             }
 
-            // Otherwise, unauthenticated -> enter limbo
+            // Otherwise, unauthenticated -> kick immediately! Dialog is strictly required!
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline() && !sessionManager.isAuthenticated(uuid)) {
-                    sessionManager.startLimbo(player);
+                    String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+                    player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
                 }
             });
         });
@@ -175,7 +177,10 @@ public class PlayerProtectionListener implements Listener {
         Player player = event.getPlayer();
         if (!sessionManager.isAuthenticated(player.getUniqueId())) {
             event.setCancelled(true);
-            sessionManager.sendPrompt(player);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+                player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+            });
         }
     }
 
@@ -204,8 +209,8 @@ public class PlayerProtectionListener implements Listener {
                 db.invalidateSession(name);
             });
             sessionManager.cleanup(player);
-            sessionManager.startLimbo(player);
-            plugin.sendMessage(player, "logout", "ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.");
+            String logoutKick = plugin.getMessage("logout-kick", "ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ. ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ ᴛᴏ ʟᴏɢ ɪɴ ᴀɢᴀɪɴ.");
+            player.kick(Component.text(plugin.stripColor(plugin.color(logoutKick))));
             return;
         }
 
@@ -213,11 +218,10 @@ public class PlayerProtectionListener implements Listener {
             return;
         }
 
-        if (!ALLOWED_COMMANDS.contains(label)) {
-            event.setCancelled(true);
-            plugin.sendMessage(player, "not-logged-in", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ʙᴇ ʟᴏɢɢᴇᴅ ɪɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.");
-            sessionManager.sendPrompt(player);
-        }
+        // If somehow in world unauthenticated, kick immediately!
+        event.setCancelled(true);
+        String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+        player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

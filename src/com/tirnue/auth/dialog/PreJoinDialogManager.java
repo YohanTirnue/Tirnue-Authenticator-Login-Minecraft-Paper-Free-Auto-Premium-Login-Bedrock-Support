@@ -166,26 +166,24 @@ public class PreJoinDialogManager implements Listener {
             pendingDialogs.remove(uuid);
             preJoinAttempts.remove(uuid);
 
-            if (result == null || result.getType() == DialogResultType.ENTER_LIMBO) {
-                // Drop into in-game limbo
+            if (result == null || result.getType() != DialogResultType.SUCCESS) {
+                String kickMsg = (result != null && result.getMessage() != null && !result.getMessage().isEmpty() && !result.getMessage().equals("Disconnected"))
+                        ? result.getMessage()
+                        : plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+                conn.disconnect(Component.text(plugin.stripColor(plugin.color(kickMsg))));
                 return;
             }
 
-            if (result.getType() == DialogResultType.DISCONNECT_KICK) {
-                if (result.getMessage() != null && !result.getMessage().isEmpty() && !result.getMessage().equals("Disconnected")) {
-                    conn.disconnect(Component.text(plugin.stripColor(plugin.color(result.getMessage()))));
-                }
-                return;
-            }
-
-            if (result.getType() == DialogResultType.SUCCESS) {
-                sessionManager.markPreAuthenticated(uuid);
-            }
+            sessionManager.markPreAuthenticated(uuid);
         } catch (Throwable t) {
             pendingDialogs.remove(uuid);
             preJoinAttempts.remove(uuid);
             plugin.getLogger().warning("Error handling pre-join dialog for " + name + ": " + t.getMessage());
-            // On unexpected exception, do not freeze connection, fall through to in-game limbo
+            try {
+                conn.disconnect(Component.text(plugin.stripColor(plugin.color(
+                        plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.")))));
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -218,18 +216,14 @@ public class PreJoinDialogManager implements Listener {
 
         try {
             if (KEY_LOGIN_CANCEL.equals(id)) {
-                boolean cancelKicks = plugin.getConfig().getBoolean("dialog.login-cancel-kicks", true);
-                future.complete(cancelKicks ?
-                        new DialogResult(DialogResultType.DISCONNECT_KICK, plugin.getMessage("timeout-kick", "&cᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ᴛɪᴍᴇᴅ ᴏᴜᴛ. ᴘʟᴇᴀꜱᴇ ʟᴏɢ ɪɴ ᴘʀᴏᴍᴘᴛʟʏ ᴜᴘᴏɴ ᴊᴏɪɴɪɴɢ.")) :
-                        DialogResult.ENTER_LIMBO);
+                String cancelMsg = plugin.getMessage("login-cancelled-kick", "ꑬ &cʟᴏɢɪɴ ᴄᴀɴᴄᴇʟʟᴇᴅ. ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ ᴛᴏ ʟᴏɢ ɪɴ.");
+                future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK, cancelMsg));
                 return;
             }
 
             if (KEY_REGISTER_CANCEL.equals(id)) {
-                boolean cancelKicks = plugin.getConfig().getBoolean("dialog.register-cancel-kicks", false);
-                future.complete(cancelKicks ?
-                        new DialogResult(DialogResultType.DISCONNECT_KICK, plugin.getMessage("timeout-kick", "&cᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛɪᴏɴ ᴛɪᴍᴇᴅ ᴏᴜᴛ. ᴘʟᴇᴀꜱᴇ ʟᴏɢ ɪɴ ᴘʀᴏᴍᴘᴛʟʏ ᴜᴘᴏɴ ᴊᴏɪɴɪɴɢ.")) :
-                        DialogResult.ENTER_LIMBO);
+                String cancelMsg = plugin.getMessage("register-cancelled-kick", "ꑬ &cʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ᴄᴀɴᴄᴇʟʟᴇᴅ. ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ ᴛᴏ ʀᴇɢɪꜱᴛᴇʀ.");
+                future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK, cancelMsg));
                 return;
             }
 
@@ -325,7 +319,8 @@ public class PreJoinDialogManager implements Listener {
             }
         } catch (Throwable t) {
             plugin.getLogger().log(Level.SEVERE, "Unexpected error processing dialog response for " + name, t);
-            future.complete(DialogResult.ENTER_LIMBO);
+            future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK,
+                    plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.")));
         }
     }
 

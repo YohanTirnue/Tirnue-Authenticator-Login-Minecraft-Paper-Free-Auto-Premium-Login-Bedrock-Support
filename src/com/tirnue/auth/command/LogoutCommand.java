@@ -40,11 +40,10 @@ public class LogoutCommand implements CommandExecutor {
             db.invalidateSession(name);
         });
 
-        // Clean up authenticated status and place back into limbo
+        // Clean up authenticated status and disconnect so they log in via dialog
         sessionManager.cleanup(player);
-        sessionManager.startLimbo(player);
-
-        plugin.sendMessage(player, "logout", "ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.");
+        String logoutKick = plugin.getMessage("logout-kick", "ꑮ &dʏᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ʟᴏɢɢᴇᴅ ᴏᴜᴛ. ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ ᴛᴏ ʟᴏɢ ɪɴ ᴀɢᴀɪɴ.");
+        player.kick(net.kyori.adventure.text.Component.text(plugin.stripColor(plugin.color(logoutKick))));
         return true;
     }
 }
