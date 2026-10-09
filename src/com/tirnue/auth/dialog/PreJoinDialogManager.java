@@ -39,6 +39,7 @@ public class PreJoinDialogManager implements Listener {
     private static final Key KEY_LOGIN_CANCEL = Key.key("tirnueauth", "login_cancel");
     private static final Key KEY_REGISTER_SUBMIT = Key.key("tirnueauth", "register_submit");
     private static final Key KEY_REGISTER_CANCEL = Key.key("tirnueauth", "register_cancel");
+    private static final Key KEY_QUEUE_REFRESH = Key.key("tirnueauth", "queue_refresh");
 
     public enum DialogResultType {
         SUCCESS,
@@ -72,16 +73,19 @@ public class PreJoinDialogManager implements Listener {
     private final DatabaseManager db;
     private final SessionManager sessionManager;
     private final MojangService mojangService;
+    private final com.tirnue.auth.security.RegistrationSurgeManager registrationSurgeManager;
 
     private final Map<UUID, CompletableFuture<DialogResult>> pendingDialogs = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> preJoinAttempts = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> dialogShownAt = new ConcurrentHashMap<>();
     private boolean hasFloodgate = false;
 
-    public PreJoinDialogManager(TirnueAuth plugin, DatabaseManager db, SessionManager sessionManager, MojangService mojangService) {
+    public PreJoinDialogManager(TirnueAuth plugin, DatabaseManager db, SessionManager sessionManager, MojangService mojangService, com.tirnue.auth.security.RegistrationSurgeManager registrationSurgeManager) {
         this.plugin = plugin;
         this.db = db;
         this.sessionManager = sessionManager;
         this.mojangService = mojangService;
+        this.registrationSurgeManager = registrationSurgeManager;
 
         if (Bukkit.getPluginManager().isPluginEnabled("floodgate")) {
             this.hasFloodgate = true;
@@ -163,7 +167,16 @@ public class PreJoinDialogManager implements Listener {
         }
 
         boolean registered = db.isRegistered(name);
-        Dialog dialog = registered ? createLoginDialog(name) : createRegisterDialog(name);
+        Dialog dialog;
+        if (registered) {
+            dialog = createLoginDialog(name);
+        } else if (registrationSurgeManager.isSurgeActive() && !registrationSurgeManager.canRegister(uuid)) {
+            int pos = registrationSurgeManager.addToQueue(uuid);
+            int estSec = registrationSurgeManager.getEstimatedWaitSeconds(uuid);
+            dialog = createQueueDialog(name, pos, estSec);
+        } else {
+            dialog = createRegisterDialog(name);
+        }
 
         CompletableFuture<DialogResult> future = new CompletableFuture<>();
         int timeoutSec = plugin.getConfig().getInt("security.login-timeout-seconds", 120);
@@ -172,6 +185,7 @@ public class PreJoinDialogManager implements Listener {
                 Math.max(5, timeoutSec), TimeUnit.SECONDS);
 
         pendingDialogs.put(uuid, future);
+        dialogShownAt.put(uuid, System.currentTimeMillis());
 
         try {
             conn.getAudience().showDialog(dialog);
@@ -180,6 +194,8 @@ public class PreJoinDialogManager implements Listener {
 
             pendingDialogs.remove(uuid);
             preJoinAttempts.remove(uuid);
+            dialogShownAt.remove(uuid);
+            registrationSurgeManager.removeFromQueue(uuid);
 
             if (result == null || result.getType() != DialogResultType.SUCCESS) {
                 String kickMsg = (result != null && result.getMessage() != null && !result.getMessage().isEmpty() && !result.getMessage().equals("Disconnected"))
@@ -193,6 +209,8 @@ public class PreJoinDialogManager implements Listener {
         } catch (Throwable t) {
             pendingDialogs.remove(uuid);
             preJoinAttempts.remove(uuid);
+            dialogShownAt.remove(uuid);
+            registrationSurgeManager.removeFromQueue(uuid);
             plugin.getLogger().warning("Error handling pre-join dialog for " + name + ": " + t.getMessage());
             try {
                 conn.disconnect(Component.text(plugin.stripColor(plugin.color(
@@ -210,6 +228,8 @@ public class PreJoinDialogManager implements Listener {
             future.complete(DialogResult.DISCONNECTED);
         }
         preJoinAttempts.remove(uuid);
+        dialogShownAt.remove(uuid);
+        registrationSurgeManager.removeFromQueue(uuid);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -239,6 +259,18 @@ public class PreJoinDialogManager implements Listener {
             if (KEY_REGISTER_CANCEL.equals(id)) {
                 String cancelMsg = plugin.getMessage("register-cancelled-kick", "ꑬ &cʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ᴄᴀɴᴄᴇʟʟᴇᴅ. ᴘʟᴇᴀꜱᴇ ʀᴇᴄᴏɴɴᴇᴄᴛ ᴛᴏ ʀᴇɢɪꜱᴛᴇʀ.");
                 future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK, cancelMsg));
+                return;
+            }
+
+            if (KEY_QUEUE_REFRESH.equals(id)) {
+                if (!registrationSurgeManager.isSurgeActive() || registrationSurgeManager.canRegister(uuid)) {
+                    dialogShownAt.put(uuid, System.currentTimeMillis());
+                    conn.getAudience().showDialog(createRegisterDialog(name));
+                } else {
+                    int pos = registrationSurgeManager.getQueuePosition(uuid);
+                    int estSec = registrationSurgeManager.getEstimatedWaitSeconds(uuid);
+                    conn.getAudience().showDialog(createQueueDialog(name, pos, estSec));
+                }
                 return;
             }
 
@@ -294,6 +326,24 @@ public class PreJoinDialogManager implements Listener {
             }
 
             if (KEY_REGISTER_SUBMIT.equals(id)) {
+                Long shownTime = dialogShownAt.get(uuid);
+                long elapsed = shownTime != null ? (System.currentTimeMillis() - shownTime) : 5000L;
+                long minReaction = registrationSurgeManager.getMinHumanReactionMs();
+                if (elapsed < minReaction) {
+                    future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK,
+                            plugin.getMessage("bot-reaction-kick",
+                                    "ꑬ &cᴀᴜᴛᴏᴍᴀᴛᴇᴅ ꜱᴜʙᴍɪꜱꜱɪᴏɴ ᴅᴇᴛᴇᴄᴛᴇᴅ ({ms}ᴍꜱ). ᴘʟᴇᴀꜱᴇ ᴛʏᴘᴇ ᴍᴀɴᴜᴀʟʟʏ.",
+                                    "{ms}", String.valueOf(elapsed))));
+                    return;
+                }
+
+                if (registrationSurgeManager.isSurgeActive() && !registrationSurgeManager.canRegister(uuid)) {
+                    int pos = registrationSurgeManager.getQueuePosition(uuid);
+                    int estSec = registrationSurgeManager.getEstimatedWaitSeconds(uuid);
+                    conn.getAudience().showDialog(createQueueDialog(name, pos, estSec));
+                    return;
+                }
+
                 String password = resp != null ? resp.getText("password") : null;
                 String confirm = resp != null ? resp.getText("confirmPassword") : null;
 
@@ -343,6 +393,8 @@ public class PreJoinDialogManager implements Listener {
                         false
                 );
                 db.saveUser(account);
+                registrationSurgeManager.removeFromQueue(uuid);
+                registrationSurgeManager.recordRegistration();
                 future.complete(DialogResult.SUCCESS);
             }
         } catch (Throwable t) {
@@ -427,6 +479,49 @@ public class PreJoinDialogManager implements Listener {
         List<ActionButton> buttons = Arrays.asList(
                 ActionButton.builder(LegacyComponentSerializer.legacySection().deserialize(plugin.color(submitBtn)))
                         .action(DialogAction.customClick(KEY_REGISTER_SUBMIT, null))
+                        .build(),
+                ActionButton.builder(LegacyComponentSerializer.legacySection().deserialize(plugin.color(cancelBtn)))
+                        .action(DialogAction.customClick(KEY_REGISTER_CANCEL, null))
+                        .build()
+        );
+
+        return Dialog.create(factory -> {
+            factory.empty()
+                    .base(base)
+                    .type(DialogType.multiAction(buttons).build());
+        });
+    }
+
+    public Dialog createQueueDialog(String username, int position, int waitSeconds) {
+        String titleStr = plugin.getConfig().getString("dialog.queue.title", "&#55cdfcᴛɪʀɴᴜᴇ &8- &eʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ qᴜᴇᴜᴇ");
+        int minutes = Math.max(1, (waitSeconds + 59) / 60);
+        String bodyStr = plugin.getConfig().getString("dialog.queue.body",
+                "&eʜɪ! ʏᴏᴜ ᴀʀᴇ ɴᴇxᴛ ɪɴ ʟɪɴᴇ ɪɴ qᴜᴇᴜᴇ ꜰᴏʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ.\n\n" +
+                "&7• ʏᴏᴜʀ ᴘᴏꜱɪᴛɪᴏɴ: &f#{pos}\n" +
+                "&7• ᴇꜱᴛɪᴍᴀᴛᴇᴅ ᴡᴀɪᴛ: &b~{min} ᴍɪɴᴜᴛᴇꜱ\n\n" +
+                "&8(ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ʀᴀᴛᴇ ʟɪᴍɪᴛ ᴀᴄᴛɪᴠᴇ: 5 ᴀᴄᴄᴏᴜɴᴛꜱ ᴘᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ)")
+                .replace("{pos}", String.valueOf(position))
+                .replace("{min}", String.valueOf(minutes))
+                .replace("{sec}", String.valueOf(waitSeconds));
+
+        String refreshBtn = plugin.getConfig().getString("dialog.queue.refresh-button", "&eᴄʜᴇᴄᴋ qᴜᴇᴜᴇ / ʀᴇꜰʀᴇꜱʜ");
+        String cancelBtn = plugin.getConfig().getString("dialog.queue.cancel-button", "&cᴄᴀɴᴄᴇʟ");
+
+        Component title = LegacyComponentSerializer.legacySection().deserialize(plugin.color(titleStr));
+        List<DialogBody> body = Collections.singletonList(
+                DialogBody.plainMessage(LegacyComponentSerializer.legacySection().deserialize(plugin.color(bodyStr)))
+        );
+
+        DialogBase base = DialogBase.builder(title)
+                .body(body)
+                .inputs(Collections.emptyList())
+                .canCloseWithEscape(false)
+                .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
+                .build();
+
+        List<ActionButton> buttons = Arrays.asList(
+                ActionButton.builder(LegacyComponentSerializer.legacySection().deserialize(plugin.color(refreshBtn)))
+                        .action(DialogAction.customClick(KEY_QUEUE_REFRESH, null))
                         .build(),
                 ActionButton.builder(LegacyComponentSerializer.legacySection().deserialize(plugin.color(cancelBtn)))
                         .action(DialogAction.customClick(KEY_REGISTER_CANCEL, null))

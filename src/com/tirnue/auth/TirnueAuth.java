@@ -6,6 +6,7 @@ import com.tirnue.auth.hook.PlaceholderHook;
 import com.tirnue.auth.listener.BedrockAuthListener;
 import com.tirnue.auth.listener.PlayerProtectionListener;
 import com.tirnue.auth.mojang.MojangService;
+import com.tirnue.auth.security.RegistrationSurgeManager;
 import com.tirnue.auth.security.SessionManager;
 import com.tirnue.auth.storage.AuthMeImporter;
 import com.tirnue.auth.storage.DatabaseManager;
@@ -24,6 +25,7 @@ public class TirnueAuth extends JavaPlugin {
     private DatabaseManager databaseManager;
     private SessionManager sessionManager;
     private MojangService mojangService;
+    private RegistrationSurgeManager registrationSurgeManager;
     private AuthMeImporter authMeImporter;
     private PreJoinDialogManager preJoinDialogManager;
     private org.bukkit.configuration.file.FileConfiguration messagesConfig;
@@ -49,6 +51,7 @@ public class TirnueAuth extends JavaPlugin {
         } catch (Throwable ignored) {}
 
         sessionManager = new SessionManager(this, databaseManager);
+        registrationSurgeManager = new RegistrationSurgeManager(this);
         long cacheHours = getConfig().getLong("mojang.cache-expiry-hours", 72);
         mojangService = new MojangService(databaseManager, getLogger(), cacheHours);
         applyMojangConfig();
@@ -66,7 +69,7 @@ public class TirnueAuth extends JavaPlugin {
         PlayerProtectionListener protectionListener = new PlayerProtectionListener(this, databaseManager, sessionManager, mojangService);
         getServer().getPluginManager().registerEvents(protectionListener, this);
 
-        preJoinDialogManager = new PreJoinDialogManager(this, databaseManager, sessionManager, mojangService);
+        preJoinDialogManager = new PreJoinDialogManager(this, databaseManager, sessionManager, mojangService, registrationSurgeManager);
         getServer().getPluginManager().registerEvents(preJoinDialogManager, this);
 
         // 5. Register Commands
@@ -138,6 +141,14 @@ public class TirnueAuth extends JavaPlugin {
         mojangService.setBurstCapacity(getConfig().getInt("mojang.rate-limiter.burst-capacity", 5));
         mojangService.setSurgeProtectionEnabled(getConfig().getBoolean("mojang.surge-protection.enabled", true));
         mojangService.setSurgeThreshold(getConfig().getInt("mojang.surge-protection.threshold", 3));
+    }
+
+    public RegistrationSurgeManager getRegistrationSurgeManager() {
+        return registrationSurgeManager;
+    }
+
+    public net.kyori.adventure.text.Component deserializeComponent(String text) {
+        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(color(text));
     }
 
     public String getPrefix() {

@@ -19,6 +19,22 @@ security:
   max-failed-attempts: 5
   # Maximum accounts registered per IP address
   max-registrations-per-ip: 4
+  # Rapid registration surge protection & pre-join modal queue
+  registration-surge:
+    enabled: true
+    # Maximum registrations within window before locking into queue
+    threshold: 5
+    # Velocity window in milliseconds (e.g. 1000ms = 1s, or 100ms)
+    window-ms: 1000
+    # Queue lockout duration in seconds (300s = 5 minutes)
+    cooldown-seconds: 300
+    # Number of registrations allowed per interval during surge
+    allowed-per-interval: 5
+    # Minimum reaction time for human input in ms (rejects instant bot script submissions)
+    min-human-reaction-ms: 800
+    # On-screen popup title and subtitle for online administrators
+    popup-title: "&#ff5555⚠ &c&lʙᴏᴛᴛɪɴɢ ꜱᴜʀɢᴇ ⚠"
+    popup-subtitle: "&e{count} registrations in {ms}ms &8- &bQueue Active"
 
 mojang:
   # Enable automatic Mojang online-mode cryptographic session auto-login
@@ -73,6 +89,11 @@ dialog:
     confirm-label: "ᴄᴏɴꜰɪʀᴍ ᴘᴀꜱꜱᴡᴏʀᴅ"
     submit-button: "&aʀᴇɢɪꜱᴛᴇʀ"
     cancel-button: "&cᴄᴀɴᴄᴇʟ"
+  queue:
+    title: "&#55cdfcᴛɪʀɴᴜᴇ &8- &eʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ qᴜᴇᴜᴇ"
+    body: "&eʜɪ! ʏᴏᴜ ᴀʀᴇ ɴᴇxᴛ ɪɴ ʟɪɴᴇ ɪɴ qᴜᴇᴜᴇ ꜰᴏʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ.\n\n&7• ʏᴏᴜʀ ᴘᴏꜱɪᴛɪᴏɴ: &f#{pos}\n&7• ᴇꜱᴛɪᴍᴀᴛᴇᴅ ᴡᴀɪᴛ: &b~{min} ᴍɪɴᴜᴛᴇꜱ\n\n&8(ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ʀᴀᴛᴇ ʟɪᴍɪᴛ ᴀᴄᴛɪᴠᴇ: 5 ᴀᴄᴄᴏᴜɴᴛꜱ ᴘᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ)"
+    refresh-button: "&eᴄʜᴇᴄᴋ qᴜᴇᴜᴇ / ʀᴇꜰʀᴇꜱʜ"
+    cancel-button: "&cᴄᴀɴᴄᴇʟ"
 
 # Chat reminders for unauthenticated players in limbo (seconds interval)
 reminder-interval-seconds: 5
@@ -119,6 +140,9 @@ messages:
   switched-cracked: 'ꑭ &eʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀꜱ ʙᴇᴇɴ ꜱᴡɪᴛᴄʜᴇᴅ ᴛᴏ ᴘᴀꜱꜱᴡᴏʀᴅ ᴍᴏᴅᴇ.'
   premium-ip-unverified: 'ꑬ &cᴛʜɪꜱ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʙᴏᴜɴᴅ ᴛᴏ ᴀ ᴅɪꜰꜰᴇʀᴇɴᴛ ɪᴘ ᴀɴᴅ ʜᴀꜱ ɴᴏ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜱᴇᴛ.'
   premium-set-password-tip: 'ꑪ &7[ꜱᴇᴄᴜʀɪᴛʏ] &8ᴜꜱᴇ &b/changepassword <password> &8ᴛᴏ ꜱᴇᴛ ᴀ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜰᴏʀ ɴᴇᴡ ɪᴘꜱ.'
+  bot-reaction-kick: 'ꑬ &cᴀᴜᴛᴏᴍᴀᴛᴇᴅ ꜱᴜʙᴍɪꜱꜱɪᴏɴ ᴅᴇᴛᴇᴄᴛᴇᴅ ({ms}ᴍꜱ). ᴘʟᴇᴀꜱᴇ ᴛʏᴘᴇ ᴍᴀɴᴜᴀʟʟʏ.'
+  registration-queued-kick: 'ꑬ &cʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ɪꜱ ᴄᴜʀʀᴇɴᴛʟʏ qᴜᴇᴜᴇᴅ ᴅᴜᴇ ᴛᴏ ʜɪɢʜ ᴠᴏʟᴜᴍᴇ. ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ʏᴏᴜʀ ᴛᴜʀɴ.'
+  surge-admin-alert: 'ꑬ &c[ʙᴏᴛ ꜱᴜʀɢᴇ] &eᴘᴏꜱꜱɪʙʟᴇ ʙᴏᴛᴛɪɴɢ ᴅᴇᴛᴇᴄᴛᴇᴅ: &f{count} &eʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴꜱ ɪɴ &f{ms}ᴍꜱ&e! ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ qᴜᴇᴜᴇ ᴀᴄᴛɪᴠᴀᴛᴇᴅ.'
 
   # General permission & sender checks
   only-players: 'ꑬ &cᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴇxᴇᴄᴜᴛᴇᴅ ʙʏ ᴘʟᴀʏᴇʀꜱ ɪɴ-ɢᴀᴍᴇ.'

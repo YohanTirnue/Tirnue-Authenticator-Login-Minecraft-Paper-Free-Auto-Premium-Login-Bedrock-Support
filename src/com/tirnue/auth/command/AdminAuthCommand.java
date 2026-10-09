@@ -226,6 +226,14 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
                 boolean circuitBreaker = mojangService.isCircuitBreakerTripped();
                 sender.sendMessage(plugin.color("&7- ᴍᴏᴊᴀɴɢ ᴄɪʀᴄᴜɪᴛ ʙʀᴇᴀᴋᴇʀ: " + (circuitBreaker ? "&c[TRIPPED / PAUSED]" : "&a[HEALTHY / ACTIVE]")));
 
+                com.tirnue.auth.security.RegistrationSurgeManager regSurge = plugin.getRegistrationSurgeManager();
+                if (regSurge != null) {
+                    boolean regActive = regSurge.isSurgeActive();
+                    int rem = regSurge.getRemainingSurgeSeconds();
+                    sender.sendMessage(plugin.color("&7- ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ꜱᴜʀɢᴇ ʟᴏᴄᴋ: " + (regActive ? "&c[ACTIVE: " + rem + "s remaining]" : "&a[STANDBY]") +
+                            " &8(&7Trigger: &f" + regSurge.getThreshold() + " reg in " + regSurge.getWindowMs() + "ms&8, &7Quota: &f" + regSurge.getAllowedPerInterval() + "/" + (regSurge.getCooldownSeconds()/60) + "m&8)"));
+                }
+
                 sender.sendMessage(plugin.color("&8&m----------------------------------------"));
                 return true;
             }
@@ -298,6 +306,34 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            case "regsurge": {
+                com.tirnue.auth.security.RegistrationSurgeManager regSurge = plugin.getRegistrationSurgeManager();
+                if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
+                    if (regSurge != null) regSurge.reset();
+                    sender.sendMessage(plugin.color("ꑫ &aʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ꜱᴜʀɢᴇ ʟᴏᴄᴋ ᴀɴᴅ qᴜᴇᴜᴇ ʜᴀᴠᴇ ʙᴇᴇɴ ʀᴇꜱᴇᴛ."));
+                    return true;
+                }
+                boolean current = plugin.getConfig().getBoolean("security.registration-surge.enabled", true);
+                boolean newState;
+                if (args.length >= 2) {
+                    String val = args[1].toLowerCase();
+                    if (val.equals("on") || val.equals("true") || val.equals("enable")) {
+                        newState = true;
+                    } else if (val.equals("off") || val.equals("false") || val.equals("disable")) {
+                        newState = false;
+                    } else {
+                        sender.sendMessage(plugin.color("ꑪ &bᴜꜱᴀɢᴇ: &f/" + label + " regsurge [on|off|reset]"));
+                        return true;
+                    }
+                } else {
+                    newState = !current;
+                }
+                plugin.getConfig().set("security.registration-surge.enabled", newState);
+                plugin.saveConfig();
+                sender.sendMessage(plugin.color("ꑫ &aʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ ɪꜱ ɴᴏᴡ: " + (newState ? "&2[ENABLED]" : "&c[DISABLED]")));
+                return true;
+            }
+
             default:
                 sendHelp(sender, label);
                 return true;
@@ -311,6 +347,7 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.color("&3/" + label + " ipbind [on|off] &7- ᴛᴏɢɢʟᴇ ᴘʀᴇᴍɪᴜᴍ ɪᴘ-ʙɪɴᴅɪɴɢ"));
         sender.sendMessage(plugin.color("&3/" + label + " surge [on|off] &7- ᴛᴏɢɢʟᴇ ᴊᴏɪɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ"));
         sender.sendMessage(plugin.color("&3/" + label + " ratelimit [on|off] &7- ᴛᴏɢɢʟᴇ ᴍᴏᴊᴀɴɢ ᴀᴘɪ ʀᴀᴛᴇ ʟɪᴍɪᴛᴇʀ"));
+        sender.sendMessage(plugin.color("&3/" + label + " regsurge [on|off|reset] &7- ᴛᴏɢɢʟᴇ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ ꜱᴜʀɢᴇ qᴜᴇᴜᴇ"));
         sender.sendMessage(plugin.color("&3/" + label + " check <player> &7- ᴄʜᴇᴄᴋ ᴅᴇᴛᴀɪʟᴇᴅ ᴀᴄᴄᴏᴜɴᴛ ꜱᴛᴀᴛᴜꜱ"));
         sender.sendMessage(plugin.color("&3/" + label + " set <player> <type> &7- ꜱᴇᴛ ᴍᴏᴅᴇ (ᴘʀᴇᴍɪᴜᴍ, ᴄʀᴀᴄᴋᴇᴅ, ʙᴇᴅʀᴏᴄᴋ)"));
         sender.sendMessage(plugin.color("&3/" + label + " unregister <player> &7- ᴅᴇʟᴇᴛᴇ ᴘʟᴀʏᴇʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ"));
@@ -325,13 +362,18 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("tirnue.auth.admin")) return Collections.emptyList();
 
         if (args.length == 1) {
-            return Arrays.asList("status", "ipbind", "surge", "ratelimit", "check", "set", "unregister", "forcelogin", "import", "reload").stream()
+            return Arrays.asList("status", "ipbind", "surge", "ratelimit", "regsurge", "check", "set", "unregister", "forcelogin", "import", "reload").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
 
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
+            if (sub.equals("regsurge")) {
+                return Arrays.asList("on", "off", "reset").stream()
+                        .filter(s -> s.startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
             if (sub.equals("ipbind") || sub.equals("surge") || sub.equals("ratelimit")) {
                 return Arrays.asList("on", "off").stream()
                         .filter(s -> s.startsWith(args[1].toLowerCase()))
