@@ -82,18 +82,25 @@ public class LoginEncryptionPacketListener extends PacketListenerAbstract {
             boolean shouldChallenge = false;
             Optional<UserAccount> accOpt = db.getUser(username);
 
-            if (accOpt.isPresent()) {
+            if (accOpt.isPresent() && accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
                 // If registered as PREMIUM in database, cryptographic Mojang auth is STRICTLY required
-                shouldChallenge = (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM);
+                shouldChallenge = true;
             } else {
-                // First-time join: check if username belongs to an official Mojang account
+                // Not registered as PREMIUM (unregistered or registered as CRACKED):
+                // Only challenge if the connecting client presents the official Mojang UUID
                 if (plugin.getConfig().getBoolean("mojang.enabled", true) && plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
                     Optional<MojangService.CachedMojangProfile> prof = mojangService.getOrFetchProfile(username);
                     if (prof.isPresent() && prof.get().isPremium()) {
-                        shouldChallenge = true;
+                        UUID officialUuid = prof.get().getUuid();
+                        if (officialUuid != null && officialUuid.equals(playerUUID)) {
+                            shouldChallenge = true;
+                        }
                     }
                 }
             }
+
+            plugin.getLogger().info("Login evaluation for '" + username + "': clientUUID=" + playerUUID
+                    + ", registered=" + accOpt.isPresent() + ", challenge=" + shouldChallenge);
 
             if (shouldChallenge) {
                 byte[] verifyToken = loginVerifier.startVerification(connectionKey, username, playerUUID);

@@ -20,30 +20,36 @@ flowchart TD
     C -- "No (Dot Spoof)" --> K1["Kick: Dot Spoofing Denied"]
 
     %% Java Branch
-    B -- "Java Client" --> E{"Account Status & Mojang API"}
+    B -- "Java Client" --> E{"Account Registered in DB?"}
 
-    %% Premium Branch (Cryptographic challenge)
-    E -- "Registered PREMIUM or Mojang Account" --> F["Server sends RSA Encryption Request Challenge"]
+    %% Registered PREMIUM
+    E -- "Registered as PREMIUM" --> F["Server sends RSA Encryption Request Challenge"]
     F --> G{"Client solves challenge & Mojang hasJoined?"}
     G -- "Yes (Official Mojang Client)" --> H["Install AES/CFB8 Netty Ciphers"]
     H --> I["Auto-Login with Mojang UUID"]
     G -- "No (Cracked Launcher / Impostor)" --> K2["Kick: Cracked Logins Forbidden"]
 
-    %% Cracked Branch
-    E -- "Registered CRACKED" --> J{"Valid IP Session?"}
-    J -- "Yes" --> S1["Session Restored"]
+    %% Registered CRACKED
+    E -- "Registered as CRACKED" --> J{"Valid IP Session?"}
+    J -- "Yes" --> S1["Session Restored (Auto-Login)"]
     J -- "No" --> P1["Paper Login Dialog"]
     P1 --> V1{"Password Correct?"}
     V1 -- "Yes" --> M["Allow In & Spawn World"]
     V1 -- "No / Timeout" --> K3["Kick: Invalid Password"]
 
-    %% Unregistered Non-Premium
-    E -- "Unregistered Cracked Account" --> N{"Registration Surge Active?"}
+    %% Unregistered Account
+    E -- "Unregistered Account" --> U{"Client sends official Mojang UUID?"}
+    U -- "Yes (Official Client)" --> F2["Server sends RSA Encryption Challenge"]
+    F2 --> G2{"Client solves challenge & Mojang hasJoined?"}
+    G2 -- "Yes" --> H2["Install AES Ciphers"] --> I2["Auto-Login & Save as PREMIUM"] --> M
+    G2 -- "No" --> K4["Kick: Session Verification Failed"]
+
+    U -- "No (Cracked Launcher)" --> N{"Registration Surge Active?"}
     N -- "Yes" --> O["In-Dialog Queue"]
     N -- "No" --> P2["Paper Register Dialog"]
     P2 --> V2{"Valid Password & Non-Bot?"}
     V2 -- "Yes" --> Q["Save as CRACKED"] --> M
-    V2 -- "No" --> K4["Kick: Invalid Registration"]
+    V2 -- "No" --> K5["Kick: Invalid Registration"]
 
     D --> M
     I --> M
