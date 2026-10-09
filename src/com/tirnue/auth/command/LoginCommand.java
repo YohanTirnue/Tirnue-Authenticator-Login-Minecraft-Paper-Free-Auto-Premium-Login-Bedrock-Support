@@ -43,29 +43,49 @@ public class LoginCommand implements CommandExecutor {
         }
 
         String password = args[0];
+        int maxLen = plugin.getConfig().getInt("security.max-password-length", 64);
+        if (password.length() > maxLen) {
+            plugin.sendMessage(player, "password-too-long", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ᴇxᴄᴇᴇᴅꜱ ᴍᴀxɪᴍᴜᴍ ʟᴇɴɢᴛʜ ᴏꜰ &f{max} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
+                    "{max}", String.valueOf(maxLen));
+            return true;
+        }
+
+        SessionManager.AuthThrottleResult throttle = sessionManager.checkAndLockAuth(player.getUniqueId());
+        if (throttle == SessionManager.AuthThrottleResult.CONCURRENT_IN_PROGRESS) {
+            return true;
+        }
+        if (throttle == SessionManager.AuthThrottleResult.RATE_LIMITED) {
+            plugin.sendMessage(player, "auth-throttled", "ꑬ &cᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ ʙᴇꜰᴏʀᴇ ᴛʀʏɪɴɢ ᴀɢᴀɪɴ.");
+            return true;
+        }
+
         String name = player.getName();
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Optional<UserAccount> userOpt = db.getUser(name);
-            if (!userOpt.isPresent()) {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    plugin.sendMessage(player, "not-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
-                });
-                return;
-            }
-
-            UserAccount user = userOpt.get();
-            boolean valid = PasswordSecurity.checkPassword(password, user.getPasswordHash());
-
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!player.isOnline()) return;
-
-                if (valid) {
-                    sessionManager.authenticate(player, plugin.getMessage("login-success", "ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!"));
-                } else {
-                    sessionManager.recordFailedAttempt(player);
+            try {
+                Optional<UserAccount> userOpt = db.getUser(name);
+                if (!userOpt.isPresent()) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.sendMessage(player, "not-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
+                    });
+                    return;
                 }
-            });
+
+                UserAccount user = userOpt.get();
+                boolean valid = PasswordSecurity.checkPassword(password, user.getPasswordHash());
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!player.isOnline()) return;
+
+                    if (valid) {
+                        sessionManager.authenticate(player, plugin.getMessage("login-success", "ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!"));
+                    } else {
+                        sessionManager.recordFailedAttempt(player);
+                    }
+                });
+            } finally {
+                sessionManager.releaseAuthLock(player.getUniqueId());
+            }
         });
 
         return true;

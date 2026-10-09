@@ -63,16 +63,26 @@ public class RegisterCommand implements CommandExecutor {
             return true;
         }
 
+        SessionManager.AuthThrottleResult throttle = sessionManager.checkAndLockAuth(player.getUniqueId());
+        if (throttle == SessionManager.AuthThrottleResult.CONCURRENT_IN_PROGRESS) {
+            return true;
+        }
+        if (throttle == SessionManager.AuthThrottleResult.RATE_LIMITED) {
+            plugin.sendMessage(player, "auth-throttled", "ꑬ &cᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ ʙᴇꜰᴏʀᴇ ᴛʀʏɪɴɢ ᴀɢᴀɪɴ.");
+            return true;
+        }
+
         String name = player.getName();
         String ip = player.getAddress() != null ? player.getAddress().getAddress().getHostAddress() : "127.0.0.1";
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            if (db.isRegistered(name)) {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    plugin.sendMessage(player, "already-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ᴀʟʀᴇᴀᴅʏ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/login <ᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
-                });
-                return;
-            }
+            try {
+                if (db.isRegistered(name)) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.sendMessage(player, "already-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ᴀʟʀᴇᴀᴅʏ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/login <ᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
+                    });
+                    return;
+                }
 
             int maxPerIp = plugin.getConfig().getInt("security.max-registrations-per-ip", 4);
             if (maxPerIp > 0 && db.countRegistrationsByIp(ip) >= maxPerIp) {
@@ -102,8 +112,11 @@ public class RegisterCommand implements CommandExecutor {
                     sessionManager.authenticate(player, plugin.getMessage("register-success", "ꑫ &aᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʟᴏɢɢɪɴɢ ɪɴ!"));
                 }
             });
-        });
+        } finally {
+            sessionManager.releaseAuthLock(player.getUniqueId());
+        }
+    });
 
-        return true;
-    }
+    return true;
+}
 }

@@ -48,6 +48,12 @@ public class ChangePasswordCommand implements CommandExecutor {
         int minLen = plugin.getConfig().getInt("security.min-password-length", 4);
         int maxLen = plugin.getConfig().getInt("security.max-password-length", 64);
 
+        if (oldPass.length() > maxLen) {
+            plugin.sendMessage(player, "password-too-long", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ᴇxᴄᴇᴇᴅꜱ ᴍᴀxɪᴍᴜᴍ ʟᴇɴɢᴛʜ ᴏꜰ &f{max} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
+                    "{max}", String.valueOf(maxLen));
+            return true;
+        }
+
         if (newPass.length() < minLen) {
             plugin.sendMessage(player, "password-too-short", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ɪꜱ ᴛᴏᴏ ꜱʜᴏʀᴛ. ᴍɪɴɪᴍᴜᴍ ʟᴇɴɢᴛʜ ɪꜱ &f{min} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
                     "{min}", String.valueOf(minLen));
@@ -60,32 +66,45 @@ public class ChangePasswordCommand implements CommandExecutor {
             return true;
         }
 
+        SessionManager.AuthThrottleResult throttle = sessionManager.checkAndLockAuth(player.getUniqueId());
+        if (throttle == SessionManager.AuthThrottleResult.CONCURRENT_IN_PROGRESS) {
+            return true;
+        }
+        if (throttle == SessionManager.AuthThrottleResult.RATE_LIMITED) {
+            plugin.sendMessage(player, "auth-throttled", "ꑬ &cᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ ʙᴇꜰᴏʀᴇ ᴛʀʏɪɴɢ ᴀɢᴀɪɴ.");
+            return true;
+        }
+
         String name = player.getName();
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Optional<UserAccount> userOpt = db.getUser(name);
-            if (!userOpt.isPresent()) {
+            try {
+                Optional<UserAccount> userOpt = db.getUser(name);
+                if (!userOpt.isPresent()) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.sendMessage(player, "not-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
+                    });
+                    return;
+                }
+
+                UserAccount user = userOpt.get();
+                if (!PasswordSecurity.checkPassword(oldPass, user.getPasswordHash())) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.sendMessage(player, "old-password-wrong", "ꑬ &cʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘᴀꜱꜱᴡᴏʀᴅ ᴡᴀꜱ ɪɴᴄᴏʀʀᴇᴄᴛ.");
+                    });
+                    return;
+                }
+
+                String newHash = PasswordSecurity.hashPassword(newPass);
+                user.setPasswordHash(newHash);
+                db.saveUser(user);
+
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    plugin.sendMessage(player, "not-registered", "ꑬ &cᴛʜɪꜱ ᴜꜱᴇʀɴᴀᴍᴇ ɪꜱ ɴᴏᴛ ʀᴇɢɪꜱᴛᴇʀᴇᴅ! ᴜꜱᴇ &b/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>&c.");
+                    plugin.sendMessage(player, "password-changed", "ꑫ &aᴘᴀꜱꜱᴡᴏʀᴅ ᴄʜᴀɴɢᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!");
                 });
-                return;
+            } finally {
+                sessionManager.releaseAuthLock(player.getUniqueId());
             }
-
-            UserAccount user = userOpt.get();
-            if (!PasswordSecurity.checkPassword(oldPass, user.getPasswordHash())) {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    plugin.sendMessage(player, "old-password-wrong", "ꑬ &cʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘᴀꜱꜱᴡᴏʀᴅ ᴡᴀꜱ ɪɴᴄᴏʀʀᴇᴄᴛ.");
-                });
-                return;
-            }
-
-            String newHash = PasswordSecurity.hashPassword(newPass);
-            user.setPasswordHash(newHash);
-            db.saveUser(user);
-
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                plugin.sendMessage(player, "password-changed", "ꑫ &aᴘᴀꜱꜱᴡᴏʀᴅ ᴄʜᴀɴɢᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!");
-            });
         });
 
         return true;

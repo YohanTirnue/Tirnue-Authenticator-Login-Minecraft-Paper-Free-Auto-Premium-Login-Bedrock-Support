@@ -26,6 +26,8 @@ public class MojangService {
     private final Logger logger;
     private final long cacheExpiryMillis;
     private final Map<String, CachedMojangProfile> memoryCache = new ConcurrentHashMap<>();
+    private volatile long circuitBreakerUntil = 0L;
+    private final java.util.concurrent.atomic.AtomicInteger consecutiveFailures = new java.util.concurrent.atomic.AtomicInteger(0);
 
     public static class CachedMojangProfile {
         private final String username;
@@ -95,6 +97,11 @@ public class MojangService {
     }
 
     public Optional<UUID> queryMojang(String username) {
+        long now = System.currentTimeMillis();
+        if (now < circuitBreakerUntil) {
+            return Optional.empty();
+        }
+
         try {
             URI uri = URI.create(MOJANG_API_URL + username);
             URL url = uri.toURL();
@@ -107,6 +114,7 @@ public class MojangService {
 
             int code = conn.getResponseCode();
             if (code == 200) {
+                consecutiveFailures.set(0);
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                     StringBuilder sb = new StringBuilder();
                     String line;
@@ -121,12 +129,27 @@ public class MojangService {
                     }
                 }
             } else if (code == 204 || code == 404) {
+                consecutiveFailures.set(0);
                 return Optional.empty(); // Username does not exist on Mojang
+            } else if (code == 429) {
+                circuitBreakerUntil = System.currentTimeMillis() + 60_000L;
+                logger.warning("Mojang API rate limit reached (HTTP 429). Pausing Mojang lookups for 60 seconds.");
+                return Optional.empty();
             } else {
-                logger.warning("Mojang API returned HTTP " + code + " for " + username);
+                int fails = consecutiveFailures.incrementAndGet();
+                if (fails >= 5) {
+                    circuitBreakerUntil = System.currentTimeMillis() + 30_000L;
+                    logger.warning("Repeated Mojang API failures (HTTP " + code + "). Tripping circuit breaker for 30s.");
+                }
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to reach Mojang API for " + username + ": " + e.getMessage());
+            int fails = consecutiveFailures.incrementAndGet();
+            if (fails >= 5) {
+                circuitBreakerUntil = System.currentTimeMillis() + 30_000L;
+                logger.warning("Repeated Mojang connection failures (" + e.getMessage() + "). Tripping circuit breaker for 30s.");
+            } else {
+                logger.log(Level.WARNING, "Failed to reach Mojang API for " + username + ": " + e.getMessage());
+            }
         }
         return Optional.empty();
     }

@@ -60,11 +60,15 @@ public class PasswordSecurity {
         return bytesToHex(saltBytes);
     }
 
+    private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+
     private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b & 0xff));
+        char[] hex = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            hex[i * 2] = HEX_CHARS[v >>> 4];
+            hex[i * 2 + 1] = HEX_CHARS[v & 0x0F];
         }
-        return sb.toString();
+        return new String(hex);
     }
 }

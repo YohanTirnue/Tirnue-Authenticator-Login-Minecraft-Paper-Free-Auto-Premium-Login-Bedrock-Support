@@ -23,9 +23,17 @@ public class SessionManager {
 
     private final Set<UUID> authenticated = ConcurrentHashMap.newKeySet();
     private final Set<UUID> preAuthenticated = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> pendingAuth = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> lastAuthAttempt = new ConcurrentHashMap<>();
     private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> timeoutTasks = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> reminderTasks = new ConcurrentHashMap<>();
+
+    public enum AuthThrottleResult {
+        ALLOWED,
+        CONCURRENT_IN_PROGRESS,
+        RATE_LIMITED
+    }
 
     public SessionManager(TirnueAuth plugin, DatabaseManager db) {
         this.plugin = plugin;
@@ -48,6 +56,24 @@ public class SessionManager {
         return preAuthenticated.remove(uuid);
     }
 
+    public AuthThrottleResult checkAndLockAuth(UUID uuid) {
+        if (pendingAuth.contains(uuid)) {
+            return AuthThrottleResult.CONCURRENT_IN_PROGRESS;
+        }
+        long now = System.currentTimeMillis();
+        Long last = lastAuthAttempt.get(uuid);
+        if (last != null && (now - last) < 1000L) {
+            return AuthThrottleResult.RATE_LIMITED;
+        }
+        lastAuthAttempt.put(uuid, now);
+        pendingAuth.add(uuid);
+        return AuthThrottleResult.ALLOWED;
+    }
+
+    public void releaseAuthLock(UUID uuid) {
+        pendingAuth.remove(uuid);
+    }
+
     public void authenticate(Player player, String reason) {
         if (player == null) return;
         UUID uuid = player.getUniqueId();
@@ -56,6 +82,8 @@ public class SessionManager {
 
         authenticated.add(uuid);
         failedAttempts.remove(name.toLowerCase());
+        pendingAuth.remove(uuid);
+        lastAuthAttempt.remove(uuid);
 
         // Cancel limbo tasks
         cancelTasks(uuid);
@@ -133,20 +161,13 @@ public class SessionManager {
     }
 
     public void sendPrompt(Player player) {
-        if (player == null || !player.isOnline()) return;
-        String name = player.getName();
-
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            boolean registered = db.isRegistered(name);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!player.isOnline() || isAuthenticated(player.getUniqueId())) return;
-                if (registered) {
-                    plugin.sendMessage(player, "login-prompt", "ꑪ &bᴘʟᴇᴀꜱᴇ ʟᴏɢ ɪɴ: &f/login <ᴘᴀꜱꜱᴡᴏʀᴅ>");
-                } else {
-                    plugin.sendMessage(player, "register-prompt", "ꑭ &eᴘʟᴇᴀꜱᴇ ʀᴇɢɪꜱᴛᴇʀ: &f/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>");
-                }
-            });
-        });
+        if (player == null || !player.isOnline() || isAuthenticated(player.getUniqueId())) return;
+        boolean registered = db.isRegistered(player.getName());
+        if (registered) {
+            plugin.sendMessage(player, "login-prompt", "ꑪ &bᴘʟᴇᴀꜱᴇ ʟᴏɢ ɪɴ: &f/login <ᴘᴀꜱꜱᴡᴏʀᴅ>");
+        } else {
+            plugin.sendMessage(player, "register-prompt", "ꑭ &eᴘʟᴇᴀꜱᴇ ʀᴇɢɪꜱᴛᴇʀ: &f/register <ᴘᴀꜱꜱᴡᴏʀᴅ> <ᴄᴏɴꜰɪʀᴍᴘᴀꜱꜱᴡᴏʀᴅ>");
+        }
     }
 
     public boolean recordFailedAttempt(Player player) {
@@ -191,6 +212,8 @@ public class SessionManager {
         UUID uuid = player.getUniqueId();
         authenticated.remove(uuid);
         preAuthenticated.remove(uuid);
+        pendingAuth.remove(uuid);
+        lastAuthAttempt.remove(uuid);
         cancelTasks(uuid);
     }
 
