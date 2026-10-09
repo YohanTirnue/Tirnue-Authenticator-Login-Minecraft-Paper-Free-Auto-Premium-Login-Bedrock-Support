@@ -1,0 +1,3 @@
+# Exclude build scripts from language stats (ensures repo shows 100% Java)
+*.sh linguist-detectable=false
+*.sh linguist-vendored=true
