@@ -51,6 +51,7 @@ public class TirnueAuth extends JavaPlugin {
         sessionManager = new SessionManager(this, databaseManager);
         long cacheHours = getConfig().getLong("mojang.cache-expiry-hours", 72);
         mojangService = new MojangService(databaseManager, getLogger(), cacheHours);
+        applyMojangConfig();
         authMeImporter = new AuthMeImporter(databaseManager, getLogger(), getDataFolder());
 
         // 3. Auto-import from AuthMe if first run
@@ -128,6 +129,15 @@ public class TirnueAuth extends JavaPlugin {
 
     public MojangService getMojangService() {
         return mojangService;
+    }
+
+    public void applyMojangConfig() {
+        if (mojangService == null) return;
+        mojangService.setRateLimiterEnabled(getConfig().getBoolean("mojang.rate-limiter.enabled", true));
+        mojangService.setRefillRatePerSec(getConfig().getDouble("mojang.rate-limiter.rate-per-second", 2.0));
+        mojangService.setBurstCapacity(getConfig().getInt("mojang.rate-limiter.burst-capacity", 5));
+        mojangService.setSurgeProtectionEnabled(getConfig().getBoolean("mojang.surge-protection.enabled", true));
+        mojangService.setSurgeThreshold(getConfig().getInt("mojang.surge-protection.threshold", 3));
     }
 
     public String getPrefix() {

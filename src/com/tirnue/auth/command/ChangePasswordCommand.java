@@ -37,18 +37,19 @@ public class ChangePasswordCommand implements CommandExecutor {
             return true;
         }
 
-        if (args.length < 2) {
+        if (args.length < 1) {
             plugin.sendMessage(player, "changepassword-usage", "ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴏʟᴅᴘᴀꜱꜱᴡᴏʀᴅ> <ɴᴇᴡᴘᴀꜱꜱᴡᴏʀᴅ>", "{label}", label);
             return true;
         }
 
-        String oldPass = args[0];
-        String newPass = args[1];
-
         int minLen = plugin.getConfig().getInt("security.min-password-length", 4);
         int maxLen = plugin.getConfig().getInt("security.max-password-length", 64);
 
-        if (oldPass.length() > maxLen) {
+        boolean singleArgMode = (args.length == 1);
+        String oldPass = singleArgMode ? null : args[0];
+        String newPass = singleArgMode ? args[0] : args[1];
+
+        if (!singleArgMode && oldPass.length() > maxLen) {
             plugin.sendMessage(player, "password-too-long", "ꑬ &cᴘᴀꜱꜱᴡᴏʀᴅ ᴇxᴄᴇᴇᴅꜱ ᴍᴀxɪᴍᴜᴍ ʟᴇɴɢᴛʜ ᴏꜰ &f{max} &cᴄʜᴀʀᴀᴄᴛᴇʀꜱ.",
                     "{max}", String.valueOf(maxLen));
             return true;
@@ -88,7 +89,16 @@ public class ChangePasswordCommand implements CommandExecutor {
                 }
 
                 UserAccount user = userOpt.get();
-                if (!PasswordSecurity.checkPassword(oldPass, user.getPasswordHash())) {
+                boolean isPlaceholder = "$PREMIUM$".equals(user.getPasswordHash());
+
+                if (singleArgMode && !isPlaceholder) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.sendMessage(player, "changepassword-usage", "ꑪ &bᴜꜱᴀɢᴇ: &f/{label} <ᴏʟᴅᴘᴀꜱꜱᴡᴏʀᴅ> <ɴᴇᴡᴘᴀꜱꜱᴡᴏʀᴅ>", "{label}", label);
+                    });
+                    return;
+                }
+
+                if (!isPlaceholder && !PasswordSecurity.checkPassword(oldPass, user.getPasswordHash())) {
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         plugin.sendMessage(player, "old-password-wrong", "ꑬ &cʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴘᴀꜱꜱᴡᴏʀᴅ ᴡᴀꜱ ɪɴᴄᴏʀʀᴇᴄᴛ.");
                     });

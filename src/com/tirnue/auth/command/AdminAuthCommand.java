@@ -53,6 +53,7 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
             case "reload": {
                 plugin.reloadConfig();
                 plugin.loadMessages();
+                plugin.applyMojangConfig();
                 mojangService.clearCache(null);
                 sessionManager.reload();
                 plugin.registerDynamicLogout();
@@ -201,6 +202,102 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            case "status": {
+                sender.sendMessage(plugin.color("&8&m----------------------------------------"));
+                sender.sendMessage(plugin.color("&#55cdfcᴛɪʀɴᴜᴇᴀᴜᴛʜ ꜱʏꜱᴛᴇᴍ ꜱᴛᴀᴛᴜꜱ"));
+
+                boolean ipBind = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
+                sender.sendMessage(plugin.color("&7- ᴘʀᴇᴍɪᴜᴍ ɪᴘ-ʙɪɴᴅɪɴɢ: " + (ipBind ? "&a[ENABLED]" : "&c[DISABLED]")));
+
+                boolean surgeOn = mojangService.isSurgeProtectionEnabled();
+                int surgeThresh = mojangService.getSurgeThreshold();
+                boolean surgeActive = mojangService.isSurgeActive();
+                int recentHandshakes = mojangService.getRecentHandshakesCount();
+                sender.sendMessage(plugin.color("&7- ᴊᴏɪɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ: " + (surgeOn ? "&a[ENABLED]" : "&c[DISABLED]") +
+                        " &8(&7Threshold: &f" + surgeThresh + " conn/s&8, &7Current: &f" + recentHandshakes + " conn/s&8, &7Surging: " + (surgeActive ? "&cYES" : "&aNO") + "&8)"));
+
+                boolean rlOn = mojangService.isRateLimiterEnabled();
+                double refillRate = mojangService.getRefillRatePerSec();
+                int burst = mojangService.getBurstCapacity();
+                int tokens = mojangService.getAvailableTokens();
+                sender.sendMessage(plugin.color("&7- ᴍᴏᴊᴀɴɢ ᴀᴘɪ ʀᴀᴛᴇ ʟɪᴍɪᴛᴇʀ: " + (rlOn ? "&a[ENABLED]" : "&c[DISABLED]") +
+                        " &8(&7Tokens: &f" + tokens + "/" + burst + "&8, &7Refill: &f" + refillRate + "/s&8)"));
+
+                boolean circuitBreaker = mojangService.isCircuitBreakerTripped();
+                sender.sendMessage(plugin.color("&7- ᴍᴏᴊᴀɴɢ ᴄɪʀᴄᴜɪᴛ ʙʀᴇᴀᴋᴇʀ: " + (circuitBreaker ? "&c[TRIPPED / PAUSED]" : "&a[HEALTHY / ACTIVE]")));
+
+                sender.sendMessage(plugin.color("&8&m----------------------------------------"));
+                return true;
+            }
+
+            case "ipbind": {
+                boolean current = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
+                boolean newState;
+                if (args.length >= 2) {
+                    String val = args[1].toLowerCase();
+                    if (val.equals("on") || val.equals("true") || val.equals("enable")) {
+                        newState = true;
+                    } else if (val.equals("off") || val.equals("false") || val.equals("disable")) {
+                        newState = false;
+                    } else {
+                        sender.sendMessage(plugin.color("ꑪ &bᴜꜱᴀɢᴇ: &f/" + label + " ipbind [on|off]"));
+                        return true;
+                    }
+                } else {
+                    newState = !current;
+                }
+                plugin.getConfig().set("mojang.premium-ip-binding", newState);
+                plugin.saveConfig();
+                sender.sendMessage(plugin.color("ꑫ &aᴘʀᴇᴍɪᴜᴍ ɪᴘ-ʙɪɴᴅɪɴɢ ɪꜱ ɴᴏᴡ: " + (newState ? "&2[ENABLED]" : "&c[DISABLED]")));
+                return true;
+            }
+
+            case "surge": {
+                boolean current = mojangService.isSurgeProtectionEnabled();
+                boolean newState;
+                if (args.length >= 2) {
+                    String val = args[1].toLowerCase();
+                    if (val.equals("on") || val.equals("true") || val.equals("enable")) {
+                        newState = true;
+                    } else if (val.equals("off") || val.equals("false") || val.equals("disable")) {
+                        newState = false;
+                    } else {
+                        sender.sendMessage(plugin.color("ꑪ &bᴜꜱᴀɢᴇ: &f/" + label + " surge [on|off]"));
+                        return true;
+                    }
+                } else {
+                    newState = !current;
+                }
+                mojangService.setSurgeProtectionEnabled(newState);
+                plugin.getConfig().set("mojang.surge-protection.enabled", newState);
+                plugin.saveConfig();
+                sender.sendMessage(plugin.color("ꑫ &aᴊᴏɪɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ ɪꜱ ɴᴏᴡ: " + (newState ? "&2[ENABLED]" : "&c[DISABLED]")));
+                return true;
+            }
+
+            case "ratelimit": {
+                boolean current = mojangService.isRateLimiterEnabled();
+                boolean newState;
+                if (args.length >= 2) {
+                    String val = args[1].toLowerCase();
+                    if (val.equals("on") || val.equals("true") || val.equals("enable")) {
+                        newState = true;
+                    } else if (val.equals("off") || val.equals("false") || val.equals("disable")) {
+                        newState = false;
+                    } else {
+                        sender.sendMessage(plugin.color("ꑪ &bᴜꜱᴀɢᴇ: &f/" + label + " ratelimit [on|off]"));
+                        return true;
+                    }
+                } else {
+                    newState = !current;
+                }
+                mojangService.setRateLimiterEnabled(newState);
+                plugin.getConfig().set("mojang.rate-limiter.enabled", newState);
+                plugin.saveConfig();
+                sender.sendMessage(plugin.color("ꑫ &aᴍᴏᴊᴀɴɢ ᴀᴘɪ ʀᴀᴛᴇ ʟɪᴍɪᴛᴇʀ ɪꜱ ɴᴏᴡ: " + (newState ? "&2[ENABLED]" : "&c[DISABLED]")));
+                return true;
+            }
+
             default:
                 sendHelp(sender, label);
                 return true;
@@ -210,6 +307,10 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
     private void sendHelp(CommandSender sender, String label) {
         sender.sendMessage(plugin.color("&8&m----------------------------------------"));
         sender.sendMessage(plugin.color("&#55cdfcᴛɪʀɴᴜᴇᴀᴜᴛʜ &7v" + plugin.getDescription().getVersion() + " &8- &bᴀᴅᴍɪɴ ᴘᴀɴᴇʟ"));
+        sender.sendMessage(plugin.color("&3/" + label + " status &7- ᴠɪᴇᴡ ꜱᴇᴄᴜʀɪᴛʏ & ʀᴀᴛᴇ-ʟɪᴍɪᴛ ꜱᴛᴀᴛᴜꜱ"));
+        sender.sendMessage(plugin.color("&3/" + label + " ipbind [on|off] &7- ᴛᴏɢɢʟᴇ ᴘʀᴇᴍɪᴜᴍ ɪᴘ-ʙɪɴᴅɪɴɢ"));
+        sender.sendMessage(plugin.color("&3/" + label + " surge [on|off] &7- ᴛᴏɢɢʟᴇ ᴊᴏɪɴ ꜱᴜʀɢᴇ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ"));
+        sender.sendMessage(plugin.color("&3/" + label + " ratelimit [on|off] &7- ᴛᴏɢɢʟᴇ ᴍᴏᴊᴀɴɢ ᴀᴘɪ ʀᴀᴛᴇ ʟɪᴍɪᴛᴇʀ"));
         sender.sendMessage(plugin.color("&3/" + label + " check <player> &7- ᴄʜᴇᴄᴋ ᴅᴇᴛᴀɪʟᴇᴅ ᴀᴄᴄᴏᴜɴᴛ ꜱᴛᴀᴛᴜꜱ"));
         sender.sendMessage(plugin.color("&3/" + label + " set <player> <type> &7- ꜱᴇᴛ ᴍᴏᴅᴇ (ᴘʀᴇᴍɪᴜᴍ, ᴄʀᴀᴄᴋᴇᴅ, ʙᴇᴅʀᴏᴄᴋ)"));
         sender.sendMessage(plugin.color("&3/" + label + " unregister <player> &7- ᴅᴇʟᴇᴛᴇ ᴘʟᴀʏᴇʀ ʀᴇɢɪꜱᴛʀᴀᴛɪᴏɴ"));
@@ -224,13 +325,18 @@ public class AdminAuthCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("tirnue.auth.admin")) return Collections.emptyList();
 
         if (args.length == 1) {
-            return Arrays.asList("check", "set", "unregister", "forcelogin", "import", "reload").stream()
+            return Arrays.asList("status", "ipbind", "surge", "ratelimit", "check", "set", "unregister", "forcelogin", "import", "reload").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
 
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
+            if (sub.equals("ipbind") || sub.equals("surge") || sub.equals("ratelimit")) {
+                return Arrays.asList("on", "off").stream()
+                        .filter(s -> s.startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
             if (sub.equals("check") || sub.equals("set") || sub.equals("unregister") || sub.equals("forcelogin")) {
                 return Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)

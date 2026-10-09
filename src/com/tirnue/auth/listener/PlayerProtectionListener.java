@@ -81,8 +81,15 @@ public class PlayerProtectionListener implements Listener {
 
                 if (accOpt.isPresent()) {
                     if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
-                        isPrem = true;
-                        premUuid = accOpt.get().getUuid();
+                        boolean ipBinding = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
+                        String storedIp = accOpt.get().getIp();
+                        if (ipBinding && storedIp != null && !storedIp.isEmpty() && !storedIp.equalsIgnoreCase(ip)) {
+                            // IP mismatch on bound premium account! Do not auto-login!
+                            isPrem = false;
+                        } else {
+                            isPrem = true;
+                            premUuid = accOpt.get().getUuid();
+                        }
                     }
                 } else if (plugin.getConfig().getBoolean("mojang.auto-detect", true)) {
                     Optional<MojangService.CachedMojangProfile> p = mojangService.getOrFetchProfile(name);
@@ -94,10 +101,14 @@ public class PlayerProtectionListener implements Listener {
 
                 if (isPrem) {
                     final UUID finalUuid = premUuid;
+                    final boolean hasNoBackupPass = !accOpt.isPresent() || "$PREMIUM$".equals(accOpt.get().getPasswordHash());
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         if (player.isOnline()) {
                             sessionManager.authenticate(player, null);
                             plugin.sendMessage(player, "mojang-welcome", "ꑫ &aʏᴏᴜ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇᴅ ᴛʜʀᴏᴜɢʜ ᴍᴏᴊᴀɴɢ, ʏᴏᴜ ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʟᴏɢɢᴇᴅ ɪɴ!");
+                            if (plugin.getConfig().getBoolean("mojang.premium-ip-binding", true) && hasNoBackupPass) {
+                                plugin.sendMessage(player, "premium-set-password-tip", "ꑪ &7[ꜱᴇᴄᴜʀɪᴛʏ] &8ᴜꜱᴇ &b/changepassword <password> &8ᴛᴏ ꜱᴇᴛ ᴀ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜰᴏʀ ɴᴇᴡ ɪᴘꜱ.");
+                            }
                         }
                     });
 

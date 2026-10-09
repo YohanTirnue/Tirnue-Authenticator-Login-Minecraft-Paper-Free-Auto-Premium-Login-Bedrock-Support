@@ -116,6 +116,14 @@ public class PreJoinDialogManager implements Listener {
             Optional<UserAccount> accOpt = db.getUser(username);
             if (accOpt.isPresent()) {
                 if (accOpt.get().getAuthType() == UserAccount.AuthType.PREMIUM) {
+                    boolean ipBinding = plugin.getConfig().getBoolean("mojang.premium-ip-binding", true);
+                    if (ipBinding) {
+                        String storedIp = accOpt.get().getIp();
+                        if (storedIp != null && !storedIp.isEmpty() && !storedIp.equalsIgnoreCase(clientIp)) {
+                            // IP changed! Cannot skip dialog. Must verify password.
+                            return false;
+                        }
+                    }
                     return true;
                 }
                 // If account exists and is CRACKED, strictly enforce dialog
@@ -136,6 +144,7 @@ public class PreJoinDialogManager implements Listener {
 
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerConfigure(AsyncPlayerConnectionConfigureEvent event) {
+        mojangService.recordHandshake();
         PlayerConfigurationConnection conn = event.getConnection();
         if (conn == null || conn.getProfile() == null) return;
 
@@ -250,8 +259,21 @@ public class PreJoinDialogManager implements Listener {
                 }
 
                 UserAccount user = userOpt.get();
+                if ("$PREMIUM$".equals(user.getPasswordHash())) {
+                    future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK,
+                            plugin.getMessage("premium-ip-unverified",
+                                    "&cᴛʜɪꜱ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʙᴏᴜɴᴅ ᴛᴏ ᴀ ᴅɪꜰꜰᴇʀᴇɴᴛ ɪᴘ ᴀɴᴅ ʜᴀꜱ ɴᴏ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜱᴇᴛ.")));
+                    return;
+                }
+
                 if (PasswordSecurity.checkPassword(password, user.getPasswordHash())) {
                     // Correct password!
+                    InetSocketAddress clientSock = conn.getClientAddress();
+                    if (clientSock != null && clientSock.getAddress() != null) {
+                        user.setIp(clientSock.getAddress().getHostAddress());
+                        user.setLastLogin(System.currentTimeMillis());
+                        db.saveUser(user);
+                    }
                     future.complete(DialogResult.SUCCESS);
                 } else {
                     int attempts = preJoinAttempts.getOrDefault(uuid, 0) + 1;

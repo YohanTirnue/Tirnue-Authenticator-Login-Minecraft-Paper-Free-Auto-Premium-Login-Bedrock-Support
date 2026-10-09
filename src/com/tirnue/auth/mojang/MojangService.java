@@ -29,6 +29,19 @@ public class MojangService {
     private volatile long circuitBreakerUntil = 0L;
     private final java.util.concurrent.atomic.AtomicInteger consecutiveFailures = new java.util.concurrent.atomic.AtomicInteger(0);
 
+    // Token-bucket rate limiter for outbound Mojang API lookups
+    private volatile boolean rateLimiterEnabled = true;
+    private volatile double refillRatePerSec = 2.0;
+    private volatile int burstCapacity = 5;
+    private final java.util.concurrent.atomic.AtomicInteger tokens = new java.util.concurrent.atomic.AtomicInteger(5);
+    private final java.util.concurrent.atomic.AtomicLong lastRefillTime = new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
+
+    // Join surge detector
+    private volatile boolean surgeProtectionEnabled = true;
+    private volatile int surgeThreshold = 3;
+    private final java.util.concurrent.ConcurrentLinkedQueue<Long> recentHandshakes = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private volatile long lastSurgeLogTime = 0L;
+
     public static class CachedMojangProfile {
         private final String username;
         private final UUID uuid;
@@ -65,6 +78,111 @@ public class MojangService {
         this.cacheExpiryMillis = cacheExpiryHours * 60L * 60L * 1000L;
     }
 
+    public void recordHandshake() {
+        long now = System.currentTimeMillis();
+        recentHandshakes.add(now);
+        pruneHandshakes(now);
+    }
+
+    private void pruneHandshakes(long now) {
+        while (!recentHandshakes.isEmpty()) {
+            Long head = recentHandshakes.peek();
+            if (head == null || now - head > 1000L) {
+                recentHandshakes.poll();
+            } else {
+                break;
+            }
+        }
+    }
+
+    public boolean isSurgeActive() {
+        if (!surgeProtectionEnabled) return false;
+        long now = System.currentTimeMillis();
+        pruneHandshakes(now);
+        return recentHandshakes.size() > surgeThreshold;
+    }
+
+    public boolean tryAcquireToken() {
+        if (!rateLimiterEnabled) return true;
+        refillTokens();
+        while (true) {
+            int current = tokens.get();
+            if (current <= 0) {
+                return false;
+            }
+            if (tokens.compareAndSet(current, current - 1)) {
+                return true;
+            }
+        }
+    }
+
+    private void refillTokens() {
+        long now = System.currentTimeMillis();
+        long last = lastRefillTime.get();
+        long elapsed = now - last;
+        if (elapsed > 250) {
+            if (lastRefillTime.compareAndSet(last, now)) {
+                int add = (int) (elapsed * refillRatePerSec / 1000.0);
+                if (add > 0) {
+                    tokens.updateAndGet(curr -> Math.min(burstCapacity, curr + add));
+                }
+            }
+        }
+    }
+
+    public boolean isRateLimiterEnabled() {
+        return rateLimiterEnabled;
+    }
+
+    public void setRateLimiterEnabled(boolean enabled) {
+        this.rateLimiterEnabled = enabled;
+    }
+
+    public boolean isSurgeProtectionEnabled() {
+        return surgeProtectionEnabled;
+    }
+
+    public void setSurgeProtectionEnabled(boolean enabled) {
+        this.surgeProtectionEnabled = enabled;
+    }
+
+    public boolean isCircuitBreakerTripped() {
+        return System.currentTimeMillis() < circuitBreakerUntil;
+    }
+
+    public double getRefillRatePerSec() {
+        return refillRatePerSec;
+    }
+
+    public void setRefillRatePerSec(double rate) {
+        this.refillRatePerSec = rate;
+    }
+
+    public int getBurstCapacity() {
+        return burstCapacity;
+    }
+
+    public void setBurstCapacity(int burst) {
+        this.burstCapacity = burst;
+        tokens.updateAndGet(curr -> Math.min(burst, curr));
+    }
+
+    public int getSurgeThreshold() {
+        return surgeThreshold;
+    }
+
+    public void setSurgeThreshold(int threshold) {
+        this.surgeThreshold = threshold;
+    }
+
+    public int getAvailableTokens() {
+        return tokens.get();
+    }
+
+    public int getRecentHandshakesCount() {
+        return recentHandshakes.size();
+    }
+
     public Optional<CachedMojangProfile> getOrFetchProfile(String username) {
         String lower = username.toLowerCase();
 
@@ -99,6 +217,19 @@ public class MojangService {
     public Optional<UUID> queryMojang(String username) {
         long now = System.currentTimeMillis();
         if (now < circuitBreakerUntil) {
+            return Optional.empty();
+        }
+
+        if (isSurgeActive()) {
+            if (now - lastSurgeLogTime > 10000L) {
+                lastSurgeLogTime = now;
+                logger.warning("Join surge detected (" + recentHandshakes.size() + " conn/sec). Bypassing outbound Mojang query to protect server threads.");
+            }
+            return Optional.empty();
+        }
+
+        if (!tryAcquireToken()) {
+            logger.warning("Mojang API query rate limit reached (token bucket empty). Bypassing query for: " + username);
             return Optional.empty();
         }
 

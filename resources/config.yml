@@ -26,6 +26,19 @@ mojang:
   auto-detect: true
   # Cache validity for Mojang profile API lookups in hours
   cache-expiry-hours: 72
+  # Premium IP binding: Only auto-login premium players from their verified last-login IP
+  # Unknown IPs will require the pre-join dialog password to prevent cracked impostors
+  premium-ip-binding: true
+  # Join surge protection: During massive connection floods, pauses outbound Mojang queries
+  surge-protection:
+    enabled: true
+    # Connection threshold per second to trigger surge protection
+    threshold: 3
+  # Outbound token-bucket rate limiter for Mojang API lookups
+  rate-limiter:
+    enabled: true
+    rate-per-second: 2.0
+    burst-capacity: 5
 
 bedrock:
   # Enable automatic Floodgate Bedrock auto-login via Xbox Live
@@ -104,6 +117,8 @@ messages:
   premium-success: 'ꑫ &aᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴀᴄᴄᴏᴜɴᴛ ᴠᴇʀɪꜰɪᴇᴅ! ᴀᴜᴛᴏ-ʟᴏɢɪɴ ɪꜱ ɴᴏᴡ ᴀᴄᴛɪᴠᴇ.'
   premium-not-found: 'ꑬ &cɴᴏ ᴏꜰꜰɪᴄɪᴀʟ ᴍᴏᴊᴀɴɢ ᴘᴀɪᴅ ᴀᴄᴄᴏᴜɴᴛ ꜰᴏᴜɴᴅ ᴡɪᴛʜ ᴜꜱᴇʀɴᴀᴍᴇ: &f{player}&c.'
   switched-cracked: 'ꑭ &eʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ʜᴀꜱ ʙᴇᴇɴ ꜱᴡɪᴛᴄʜᴇᴅ ᴛᴏ ᴘᴀꜱꜱᴡᴏʀᴅ ᴍᴏᴅᴇ.'
+  premium-ip-unverified: 'ꑬ &cᴛʜɪꜱ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴏᴜɴᴛ ɪꜱ ʙᴏᴜɴᴅ ᴛᴏ ᴀ ᴅɪꜰꜰᴇʀᴇɴᴛ ɪᴘ ᴀɴᴅ ʜᴀꜱ ɴᴏ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜱᴇᴛ.'
+  premium-set-password-tip: 'ꑪ &7[ꜱᴇᴄᴜʀɪᴛʏ] &8ᴜꜱᴇ &b/changepassword <password> &8ᴛᴏ ꜱᴇᴛ ᴀ ʙᴀᴄᴋᴜᴘ ᴘᴀꜱꜱᴡᴏʀᴅ ꜰᴏʀ ɴᴇᴡ ɪᴘꜱ.'
 
   # General permission & sender checks
   only-players: 'ꑬ &cᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴇxᴇᴄᴜᴛᴇᴅ ʙʏ ᴘʟᴀʏᴇʀꜱ ɪɴ-ɢᴀᴍᴇ.'
