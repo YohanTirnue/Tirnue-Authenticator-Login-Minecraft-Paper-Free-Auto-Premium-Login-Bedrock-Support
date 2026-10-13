@@ -91,6 +91,21 @@ public class SessionManager {
         // Remove blindness
         player.removePotionEffect(PotionEffectType.BLINDNESS);
 
+        // Safety guarantee: restore normal speeds if corrupted or zeroed out
+        if (player.getWalkSpeed() <= 0.001f) {
+            player.setWalkSpeed(0.2f);
+        }
+        if (player.getFlySpeed() <= 0.001f) {
+            player.setFlySpeed(0.1f);
+        }
+        try {
+            org.bukkit.attribute.AttributeInstance speedAttr = player.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+            if (speedAttr != null && speedAttr.getBaseValue() <= 0.001) {
+                speedAttr.setBaseValue(0.1);
+            }
+        } catch (Throwable ignored) {
+        }
+
         // Play level-up chime
         try {
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
