@@ -214,10 +214,12 @@ public class AccountLinkManager {
     }
 
     private void kickOnlinePlayer(String name, String reason) {
-        Player p = Bukkit.getPlayerExact(name);
-        if (p != null && p.isOnline()) {
-            p.kick(net.kyori.adventure.text.Component.text(reason));
-        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player p = Bukkit.getPlayerExact(name);
+            if (p != null && p.isOnline()) {
+                p.kick(net.kyori.adventure.text.Component.text(reason));
+            }
+        });
     }
 
     private void backupPlayerData(UUID uuid, String name) {
