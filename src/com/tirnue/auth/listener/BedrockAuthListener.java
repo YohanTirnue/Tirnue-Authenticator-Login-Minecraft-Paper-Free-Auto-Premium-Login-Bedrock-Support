@@ -39,8 +39,18 @@ public class BedrockAuthListener implements Listener {
         if (player.getName().startsWith(".")) return true;
         if (hasFloodgate) {
             try {
-                return FloodgateApi.getInstance().isFloodgatePlayer(player.getUniqueId())
-                        || FloodgateApi.getInstance().isFloodgateId(player.getUniqueId());
+                UUID uuid = player.getUniqueId();
+                if (FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
+                    return true;
+                }
+                for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
+                    if (uuid.equals(fp.getCorrectUniqueId()) || uuid.equals(fp.getJavaUniqueId())
+                            || player.getName().equalsIgnoreCase(fp.getUsername())
+                            || player.getName().equalsIgnoreCase("." + fp.getUsername())
+                            || player.getName().equalsIgnoreCase(fp.getJavaUsername())) {
+                        return true;
+                    }
+                }
             } catch (Throwable ignored) {
             }
         }
@@ -51,8 +61,17 @@ public class BedrockAuthListener implements Listener {
         if (name != null && name.startsWith(".")) return true;
         if (hasFloodgate && uuid != null) {
             try {
-                return FloodgateApi.getInstance().isFloodgatePlayer(uuid)
-                        || FloodgateApi.getInstance().isFloodgateId(uuid);
+                if (FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
+                    return true;
+                }
+                for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
+                    if (uuid.equals(fp.getCorrectUniqueId()) || uuid.equals(fp.getJavaUniqueId())
+                            || (name != null && (name.equalsIgnoreCase(fp.getUsername())
+                            || name.equalsIgnoreCase("." + fp.getUsername())
+                            || name.equalsIgnoreCase(fp.getJavaUsername())))) {
+                        return true;
+                    }
+                }
             } catch (Throwable ignored) {
             }
         }
@@ -74,6 +93,18 @@ public class BedrockAuthListener implements Listener {
                 try {
                     verifiedBedrock = FloodgateApi.getInstance().isFloodgatePlayer(uuid)
                             || FloodgateApi.getInstance().isFloodgateId(uuid);
+
+                    if (!verifiedBedrock) {
+                        for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
+                            if (uuid.equals(fp.getCorrectUniqueId()) || uuid.equals(fp.getJavaUniqueId())
+                                    || name.equalsIgnoreCase(fp.getUsername())
+                                    || name.equalsIgnoreCase("." + fp.getUsername())
+                                    || name.equalsIgnoreCase(fp.getJavaUsername())) {
+                                verifiedBedrock = true;
+                                break;
+                            }
+                        }
+                    }
                 } catch (Throwable ignored) {
                 }
             }
@@ -104,6 +135,11 @@ public class BedrockAuthListener implements Listener {
 
         // Background account registration or update
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            // If linked account, preserve existing database account without modification
+            if (plugin.getAccountLinkManager() != null && plugin.getAccountLinkManager().isLinked(name)) {
+                return;
+            }
+
             Optional<UserAccount> userOpt = db.getUser(name);
             if (!userOpt.isPresent()) {
                 // Auto-register Bedrock player with strong random hash
@@ -130,5 +166,30 @@ public class BedrockAuthListener implements Listener {
                 }
             }
         });
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onAsyncPreLoginLink(AsyncPlayerPreLoginEvent event) {
+        if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            return;
+        }
+        String name = event.getName();
+        if (name == null || name.startsWith(".")) {
+            return;
+        }
+        if (plugin.getAccountLinkManager() != null) {
+            com.tirnue.auth.link.LinkedAccount link = plugin.getAccountLinkManager().getLinkByJavaName(name);
+            if (link != null && link.isBedrockMaster()) {
+                UUID targetUuid = link.getMasterUuid();
+                try {
+                    com.destroystokyo.paper.profile.PlayerProfile profile = event.getPlayerProfile();
+                    profile.setId(targetUuid);
+                    event.setPlayerProfile(profile);
+                    plugin.getLogger().info("Applied linked Bedrock master UUID " + targetUuid + " to Java player " + name);
+                } catch (Throwable t) {
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to setPlayerProfile for linked Java player " + name + ": " + t.getMessage(), t);
+                }
+            }
+        }
     }
 }

@@ -46,6 +46,16 @@ commands:
     aliases: [tirnueauth, auth]
     permission: tirnue.auth.admin
     default: op
+  tirnueauthlink:
+    description: Link Java and Bedrock accounts to sync data
+    aliases: [talink, tlink, authlink]
+    permission: tirnue.auth.admin
+    default: op
+  tirnueauthunlink:
+    description: Unlink Java and Bedrock accounts
+    aliases: [taunlink, tunlink, authunlink]
+    permission: tirnue.auth.admin
+    default: op
 
 permissions:
   tirnue.auth.user:

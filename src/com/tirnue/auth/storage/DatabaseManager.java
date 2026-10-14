@@ -58,6 +58,18 @@ public class DatabaseManager {
                     "ip TEXT NOT NULL," +
                     "expires_at INTEGER NOT NULL" +
                     ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS player_links (" +
+                    "bedrock_name TEXT NOT NULL COLLATE NOCASE," +
+                    "bedrock_uuid TEXT NOT NULL," +
+                    "java_name TEXT NOT NULL COLLATE NOCASE," +
+                    "java_uuid TEXT NOT NULL," +
+                    "master_type TEXT NOT NULL," +
+                    "master_uuid TEXT NOT NULL," +
+                    "copy_uuid TEXT NOT NULL," +
+                    "linked_at INTEGER NOT NULL," +
+                    "PRIMARY KEY (bedrock_name, java_name)" +
+                    ");");
         }
     }
 
@@ -283,6 +295,76 @@ public class DatabaseManager {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException ignored) {}
         return 0;
+    }
+
+    public java.util.List<com.tirnue.auth.link.LinkedAccount> loadAllLinks() {
+        java.util.List<com.tirnue.auth.link.LinkedAccount> list = new java.util.ArrayList<>();
+        synchronized (this) {
+            if (connection == null) return list;
+            String sql = "SELECT bedrock_name, bedrock_uuid, java_name, java_uuid, master_type, master_uuid, copy_uuid, linked_at FROM player_links";
+            try (Statement s = connection.createStatement();
+                 ResultSet rs = s.executeQuery(sql)) {
+                while (rs.next()) {
+                    String bName = rs.getString("bedrock_name");
+                    UUID bUuid = UUID.fromString(rs.getString("bedrock_uuid"));
+                    String jName = rs.getString("java_name");
+                    UUID jUuid = UUID.fromString(rs.getString("java_uuid"));
+                    com.tirnue.auth.link.LinkedAccount.MasterType masterType = com.tirnue.auth.link.LinkedAccount.MasterType.valueOf(rs.getString("master_type"));
+                    UUID masterUuid = UUID.fromString(rs.getString("master_uuid"));
+                    UUID copyUuid = UUID.fromString(rs.getString("copy_uuid"));
+                    long linkedAt = rs.getLong("linked_at");
+                    list.add(new com.tirnue.auth.link.LinkedAccount(bName, bUuid, jName, jUuid, masterType, masterUuid, copyUuid, linkedAt));
+                }
+            } catch (SQLException e) {
+                logger.log(Level.WARNING, "Failed to load player links", e);
+            }
+        }
+        return list;
+    }
+
+    public void saveLink(com.tirnue.auth.link.LinkedAccount link) {
+        if (link == null) return;
+        synchronized (this) {
+            if (connection == null) return;
+            String sql = "INSERT INTO player_links (bedrock_name, bedrock_uuid, java_name, java_uuid, master_type, master_uuid, copy_uuid, linked_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT(bedrock_name, java_name) DO UPDATE SET " +
+                    "bedrock_uuid = excluded.bedrock_uuid, " +
+                    "java_uuid = excluded.java_uuid, " +
+                    "master_type = excluded.master_type, " +
+                    "master_uuid = excluded.master_uuid, " +
+                    "copy_uuid = excluded.copy_uuid, " +
+                    "linked_at = excluded.linked_at";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, link.getBedrockName());
+                ps.setString(2, link.getBedrockUuid().toString());
+                ps.setString(3, link.getJavaName());
+                ps.setString(4, link.getJavaUuid().toString());
+                ps.setString(5, link.getMasterType().name());
+                ps.setString(6, link.getMasterUuid().toString());
+                ps.setString(7, link.getCopyUuid().toString());
+                ps.setLong(8, link.getLinkedAt());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                logger.log(Level.WARNING, "Failed to save player link", e);
+            }
+        }
+    }
+
+    public boolean deleteLink(String name) {
+        if (name == null) return false;
+        synchronized (this) {
+            if (connection == null) return false;
+            String sql = "DELETE FROM player_links WHERE bedrock_name = ? COLLATE NOCASE OR java_name = ? COLLATE NOCASE";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, name);
+                ps.setString(2, name);
+                return ps.executeUpdate() > 0;
+            } catch (SQLException e) {
+                logger.log(Level.WARNING, "Failed to delete player link for " + name, e);
+            }
+        }
+        return false;
     }
 
     public synchronized void close() {

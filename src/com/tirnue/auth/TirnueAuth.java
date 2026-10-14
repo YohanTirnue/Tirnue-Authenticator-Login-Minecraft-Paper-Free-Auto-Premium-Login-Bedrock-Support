@@ -3,6 +3,7 @@ package com.tirnue.auth;
 import com.tirnue.auth.command.*;
 import com.tirnue.auth.dialog.PreJoinDialogManager;
 import com.tirnue.auth.hook.PlaceholderHook;
+import com.tirnue.auth.link.AccountLinkManager;
 import com.tirnue.auth.listener.BedrockAuthListener;
 import com.tirnue.auth.listener.PlayerProtectionListener;
 import com.tirnue.auth.mojang.MojangService;
@@ -17,6 +18,10 @@ import com.tirnue.auth.packet.MojangSessionVerifier;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import com.tirnue.auth.chunk.GradualChunkStreamer;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,7 +36,9 @@ public class TirnueAuth extends JavaPlugin {
     private LoginEncryptionPacketListener loginEncryptionPacketListener;
     private RegistrationSurgeManager registrationSurgeManager;
     private AuthMeImporter authMeImporter;
+    private AccountLinkManager accountLinkManager;
     private PreJoinDialogManager preJoinDialogManager;
+    private GradualChunkStreamer gradualChunkStreamer;
     private org.bukkit.configuration.file.FileConfiguration messagesConfig;
 
     @Override
@@ -61,6 +68,10 @@ public class TirnueAuth extends JavaPlugin {
         applyMojangConfig();
         authMeImporter = new AuthMeImporter(databaseManager, getLogger(), getDataFolder());
 
+        // 2b. Initialize AccountLinkManager (Java + Bedrock sync)
+        accountLinkManager = new AccountLinkManager(this, databaseManager);
+        accountLinkManager.initialize();
+
         // 3. Auto-import from AuthMe if first run
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             authMeImporter.importFromAuthMe(false);
@@ -89,6 +100,9 @@ public class TirnueAuth extends JavaPlugin {
 
         preJoinDialogManager = new PreJoinDialogManager(this, databaseManager, sessionManager, mojangService, registrationSurgeManager);
         getServer().getPluginManager().registerEvents(preJoinDialogManager, this);
+
+        gradualChunkStreamer = new GradualChunkStreamer(this);
+        getServer().getPluginManager().registerEvents(gradualChunkStreamer, this);
 
         // 5. Register Commands
         if (getCommand("login") != null) {
@@ -120,6 +134,22 @@ public class TirnueAuth extends JavaPlugin {
             getCommand("tauth").setTabCompleter(adminCommand);
         }
 
+        // 5b. Account Linking Commands (/tirnueauthlink, /tirnueauthunlink, /talink, /taunlink)
+        TirnueAuthLinkCommand linkCommand = new TirnueAuthLinkCommand(this, accountLinkManager);
+        if (getCommand("tirnueauthlink") != null) {
+            getCommand("tirnueauthlink").setExecutor(linkCommand);
+            getCommand("tirnueauthlink").setTabCompleter(linkCommand);
+        } else {
+            registerDynamicCommand("tirnueauthlink", "Link Java and Bedrock accounts", "/tirnueauthlink <Original> <Copy>", Arrays.asList("talink", "tlink", "authlink"), "tirnue.auth.admin", linkCommand, linkCommand);
+        }
+
+        if (getCommand("tirnueauthunlink") != null) {
+            getCommand("tirnueauthunlink").setExecutor(linkCommand);
+            getCommand("tirnueauthunlink").setTabCompleter(linkCommand);
+        } else {
+            registerDynamicCommand("tirnueauthunlink", "Unlink Java and Bedrock accounts", "/tirnueauthunlink <Name>", Arrays.asList("taunlink", "tunlink", "authunlink"), "tirnue.auth.admin", linkCommand, linkCommand);
+        }
+
         // 6. PlaceholderAPI Expansion
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             new PlaceholderHook(this, databaseManager, sessionManager).register();
@@ -136,6 +166,9 @@ public class TirnueAuth extends JavaPlugin {
                 com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager().unregisterListener(loginEncryptionPacketListener);
             } catch (Throwable ignored) {}
         }
+        if (gradualChunkStreamer != null) {
+            gradualChunkStreamer.cancelAll();
+        }
         if (sessionManager != null) {
             sessionManager.reload();
         }
@@ -143,6 +176,10 @@ public class TirnueAuth extends JavaPlugin {
             databaseManager.close();
         }
         getLogger().info("TirnueAuth disabled.");
+    }
+
+    public GradualChunkStreamer getGradualChunkStreamer() {
+        return gradualChunkStreamer;
     }
 
     public DatabaseManager getDatabaseManager() {
@@ -284,6 +321,43 @@ public class TirnueAuth extends JavaPlugin {
             }
         } catch (Throwable t) {
             getLogger().log(Level.FINE, "Dynamic logout registration: " + t.getMessage());
+        }
+    }
+
+    public AccountLinkManager getAccountLinkManager() {
+        return accountLinkManager;
+    }
+
+    public void registerDynamicCommand(String name, String desc, String usage, List<String> aliases, String perm, org.bukkit.command.CommandExecutor executor, org.bukkit.command.TabCompleter completer) {
+        try {
+            java.lang.reflect.Field commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+            commandMapField.setAccessible(true);
+            org.bukkit.command.CommandMap commandMap = (org.bukkit.command.CommandMap) commandMapField.get(Bukkit.getServer());
+
+            org.bukkit.command.Command existing = commandMap.getCommand(name);
+            if (existing == null) {
+                org.bukkit.command.Command dynCmd = new org.bukkit.command.Command(name, desc, usage, aliases != null ? aliases : Collections.emptyList()) {
+                    @Override
+                    public boolean execute(org.bukkit.command.CommandSender sender, String commandLabel, String[] args) {
+                        return executor.onCommand(sender, this, commandLabel, args);
+                    }
+
+                    @Override
+                    public List<String> tabComplete(org.bukkit.command.CommandSender sender, String alias, String[] args) {
+                        if (completer != null) {
+                            return completer.onTabComplete(sender, this, alias, args);
+                        }
+                        return super.tabComplete(sender, alias, args);
+                    }
+                };
+                if (perm != null) {
+                    dynCmd.setPermission(perm);
+                }
+                commandMap.register("tirnueauth", dynCmd);
+                getLogger().info("Dynamically registered /" + name + " in Bukkit CommandMap!");
+            }
+        } catch (Throwable t) {
+            getLogger().log(Level.FINE, "Dynamic command registration failed for " + name + ": " + t.getMessage());
         }
     }
 }

@@ -73,6 +73,16 @@ limbo:
   # Block movement while unauthenticated
   freeze-movement: true
 
+# Gradual Chunk Streaming: Eliminates 1,000ms login latency surge
+# Progressively streams chunks on join & world change to prevent Netty socket saturation
+gradual-chunks:
+  enabled: true
+  initial-view-distance: 3
+  stage-1-distance: 6
+  stage-2-distance: 8
+  target-view-distance: 10
+  ticks-per-stage: 40
+
 # Modern Paper pre-join modal dialog UI (prompts password before player enters world)
 dialog:
   enabled: true
