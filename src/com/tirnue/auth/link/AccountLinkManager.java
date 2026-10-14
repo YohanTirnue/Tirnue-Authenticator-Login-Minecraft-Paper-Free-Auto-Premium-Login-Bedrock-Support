@@ -139,21 +139,53 @@ public class AccountLinkManager {
             return new LinkResult(false, "Player names cannot be null!");
         }
 
-        boolean origIsBedrock = isBedrockName(originalName);
-        boolean copyIsBedrock = isBedrockName(copyName);
+        boolean origHasDot = originalName.startsWith(".");
+        boolean copyHasDot = copyName.startsWith(".");
 
-        if (origIsBedrock == copyIsBedrock) {
-            return new LinkResult(false, "You can only link 1 Java account and 1 Bedrock account together! One must have a '.' prefix and one must not.");
+        String bedrockName;
+        String javaName;
+        LinkedAccount.MasterType masterType;
+
+        if (origHasDot && !copyHasDot) {
+            // Original is Bedrock, Copy is Java
+            bedrockName = originalName;
+            javaName = copyName;
+            masterType = LinkedAccount.MasterType.BEDROCK;
+        } else if (!origHasDot && copyHasDot) {
+            // Original is Java, Copy is Bedrock
+            javaName = originalName;
+            bedrockName = copyName;
+            masterType = LinkedAccount.MasterType.JAVA;
+        } else if (origHasDot && copyHasDot) {
+            return new LinkResult(false, "Both accounts cannot be Bedrock accounts! One must be Java and one must be Bedrock.");
+        } else {
+            // Neither has a dot prefix! Let's deduce which is Bedrock by checking exact DB records
+            Optional<UserAccount> origAcc = db.getUser(originalName);
+            Optional<UserAccount> copyAcc = db.getUser(copyName);
+            Optional<UserAccount> origDotAcc = db.getUser("." + originalName);
+            Optional<UserAccount> copyDotAcc = db.getUser("." + copyName);
+
+            boolean origIsBedrock = (origAcc.isPresent() && origAcc.get().getAuthType() == UserAccount.AuthType.BEDROCK)
+                    || (origDotAcc.isPresent() && origDotAcc.get().getAuthType() == UserAccount.AuthType.BEDROCK && (!origAcc.isPresent() || origAcc.get().getAuthType() != UserAccount.AuthType.CRACKED));
+            boolean copyIsBedrock = (copyAcc.isPresent() && copyAcc.get().getAuthType() == UserAccount.AuthType.BEDROCK)
+                    || (copyDotAcc.isPresent() && copyDotAcc.get().getAuthType() == UserAccount.AuthType.BEDROCK && (!copyAcc.isPresent() || copyAcc.get().getAuthType() != UserAccount.AuthType.CRACKED));
+
+            if (origIsBedrock && !copyIsBedrock) {
+                bedrockName = "." + originalName;
+                javaName = copyName;
+                masterType = LinkedAccount.MasterType.BEDROCK;
+            } else if (!origIsBedrock && copyIsBedrock) {
+                javaName = originalName;
+                bedrockName = "." + copyName;
+                masterType = LinkedAccount.MasterType.JAVA;
+            } else {
+                return new LinkResult(false, "Could not determine Bedrock vs Java account. Please specify the Bedrock account with a '.' prefix (e.g. /tirnueauthlink " + originalName + " ." + copyName + ")");
+            }
         }
-
-        String bedrockName = origIsBedrock ? originalName : copyName;
-        String javaName = origIsBedrock ? copyName : originalName;
 
         if (!bedrockName.startsWith(".")) {
             bedrockName = "." + bedrockName;
         }
-
-        LinkedAccount.MasterType masterType = origIsBedrock ? LinkedAccount.MasterType.BEDROCK : LinkedAccount.MasterType.JAVA;
 
         // Resolve UUIDs
         UUID bedrockUuid = resolveBedrockUuid(bedrockName);
@@ -167,21 +199,21 @@ public class AccountLinkManager {
         }
 
         // Check if either is already linked
-        Optional<LinkedAccount> existingBedrock = getLinkByName(bedrockName);
-        if (existingBedrock.isPresent()) {
-            return new LinkResult(false, "Bedrock player '" + bedrockName + "' is already linked to Java '" + existingBedrock.get().getJavaName() + "'! Unlink them first.");
+        LinkedAccount existingBedrock = bedrockNameToLink.get(bedrockName.toLowerCase());
+        if (existingBedrock != null) {
+            return new LinkResult(false, "Bedrock player '" + bedrockName + "' is already linked to Java '" + existingBedrock.getJavaName() + "'! Unlink them first.");
         }
 
-        Optional<LinkedAccount> existingJava = getLinkByName(javaName);
-        if (existingJava.isPresent()) {
-            return new LinkResult(false, "Java player '" + javaName + "' is already linked to Bedrock '" + existingJava.get().getBedrockName() + "'! Unlink them first.");
+        LinkedAccount existingJava = javaNameToLink.get(javaName.toLowerCase());
+        if (existingJava != null) {
+            return new LinkResult(false, "Java player '" + javaName + "' is already linked to Bedrock '" + existingJava.getBedrockName() + "'! Unlink them first.");
         }
 
-        UUID masterUuid = origIsBedrock ? bedrockUuid : javaUuid;
-        UUID copyUuid = origIsBedrock ? javaUuid : bedrockUuid;
+        UUID masterUuid = (masterType == LinkedAccount.MasterType.BEDROCK) ? bedrockUuid : javaUuid;
+        UUID copyUuid = (masterType == LinkedAccount.MasterType.BEDROCK) ? javaUuid : bedrockUuid;
 
         // Make safety backup of copy account's playerdata
-        backupPlayerData(copyUuid, copyName);
+        backupPlayerData(copyUuid, (masterType == LinkedAccount.MasterType.BEDROCK) ? javaName : bedrockName);
 
         LinkedAccount link = new LinkedAccount(bedrockName, bedrockUuid, javaName, javaUuid, masterType, masterUuid, copyUuid, System.currentTimeMillis());
 
@@ -190,7 +222,11 @@ public class AccountLinkManager {
         registerInMemory(link);
 
         // Kick copy account if online so they rejoin under master UUID
-        kickOnlinePlayer(copyName, "Your account has been linked to " + originalName + "! Please rejoin.");
+        String copyTargetKick = (masterType == LinkedAccount.MasterType.BEDROCK) ? javaName : bedrockName;
+        kickOnlinePlayer(copyTargetKick, "Your account has been linked to " + originalName + "! Please rejoin.");
+        if (copyName != null && !copyName.equalsIgnoreCase(copyTargetKick)) {
+            kickOnlinePlayer(copyName, "Your account has been linked to " + originalName + "! Please rejoin.");
+        }
 
         return new LinkResult(true, "Successfully linked " + bedrockName + " and " + javaName + "! Master UUID: " + masterUuid + " (" + masterType.name() + ")");
     }
@@ -246,33 +282,7 @@ public class AccountLinkManager {
         }
     }
 
-    private boolean isBedrockName(String name) {
-        if (name == null) return false;
-        if (name.startsWith(".")) return true;
-        Optional<UserAccount> user = db.getUser(name);
-        if (user.isPresent() && user.get().getAuthType() == UserAccount.AuthType.BEDROCK) {
-            return true;
-        }
-        Optional<UserAccount> userDot = db.getUser("." + name);
-        if (userDot.isPresent() && userDot.get().getAuthType() == UserAccount.AuthType.BEDROCK) {
-            return true;
-        }
-        if (Bukkit.getPluginManager().isPluginEnabled("floodgate")) {
-            try {
-                Player p = Bukkit.getPlayerExact(name);
-                if (p == null) p = Bukkit.getPlayerExact("." + name);
-                if (p != null && (FloodgateApi.getInstance().isFloodgatePlayer(p.getUniqueId()) || FloodgateApi.getInstance().isFloodgateId(p.getUniqueId()))) {
-                    return true;
-                }
-                for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
-                    if (name.equalsIgnoreCase(fp.getUsername()) || name.equalsIgnoreCase("." + fp.getUsername()) || name.equalsIgnoreCase(fp.getJavaUsername())) {
-                        return true;
-                    }
-                }
-            } catch (Throwable ignored) {}
-        }
-        return false;
-    }
+
 
     private UUID resolveBedrockUuid(String bedrockName) {
         String dotted = bedrockName.startsWith(".") ? bedrockName : "." + bedrockName;

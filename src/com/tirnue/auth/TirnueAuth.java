@@ -156,6 +156,11 @@ public class TirnueAuth extends JavaPlugin {
             getLogger().info("Successfully registered TirnueAuth PlaceholderAPI expansion!");
         }
 
+        // 7. Re-authenticate all currently online players in case of reload/hotswap
+        for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) {
+            sessionManager.authenticate(online, null);
+        }
+
         getLogger().info("TirnueAuth v" + getDescription().getVersion() + " has been successfully enabled!");
     }
 

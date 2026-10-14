@@ -23,7 +23,7 @@ public class TirnueFloodgateLink implements PlayerLink {
         LinkedAccount link = linkManager.getLinkByBedrockUuid(bedrockId);
         if (link != null && link.isJavaMaster()) {
             return CompletableFuture.completedFuture(
-                LinkedPlayer.of(link.getBedrockName(), link.getMasterUuid(), bedrockId)
+                LinkedPlayer.of(link.getJavaName(), link.getMasterUuid(), bedrockId)
             );
         }
         return CompletableFuture.completedFuture(null);

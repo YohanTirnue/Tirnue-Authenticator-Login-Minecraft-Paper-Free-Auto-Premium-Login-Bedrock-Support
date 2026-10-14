@@ -144,11 +144,10 @@ public class PlayerProtectionListener implements Listener {
                 return;
             }
 
-            // Otherwise, unauthenticated -> kick immediately! Dialog is strictly required!
+            // Otherwise, unauthenticated -> put player in limbo to /login or /register
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline() && !sessionManager.isAuthenticated(uuid)) {
-                    String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
-                    player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+                    sessionManager.startLimbo(player);
                 }
             });
         });
@@ -188,10 +187,7 @@ public class PlayerProtectionListener implements Listener {
         Player player = event.getPlayer();
         if (!sessionManager.isAuthenticated(player.getUniqueId())) {
             event.setCancelled(true);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
-                player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
-            });
+            sessionManager.sendPrompt(player);
         }
     }
 
@@ -229,10 +225,14 @@ public class PlayerProtectionListener implements Listener {
             return;
         }
 
-        // If somehow in world unauthenticated, kick immediately!
+        // Allow /login and /register while unauthenticated in limbo
+        if (label.equals("login") || label.equals("l") || label.equals("register") || label.equals("reg")) {
+            return;
+        }
+
+        // Block all other commands while unauthenticated
         event.setCancelled(true);
-        String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
-        player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+        sessionManager.sendPrompt(player);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
