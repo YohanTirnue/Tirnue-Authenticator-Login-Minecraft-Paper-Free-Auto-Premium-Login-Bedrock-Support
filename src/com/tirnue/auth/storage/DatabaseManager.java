@@ -144,6 +144,10 @@ public class DatabaseManager {
 
     public void saveUser(UserAccount user) {
         if (user == null) return;
+        if (!com.tirnue.auth.TirnueAuth.isValidUsername(user.getUsername())) {
+            logger.warning("[DatabaseManager] Refusing to save user with invalid/special character username: " + user.getUsername());
+            return;
+        }
         String lower = user.getUsername().toLowerCase();
         userCache.put(lower, user);
         registeredCache.put(lower, true);

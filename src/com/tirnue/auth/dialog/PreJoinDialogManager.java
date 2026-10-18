@@ -163,6 +163,12 @@ public class PreJoinDialogManager implements Listener {
         String name = conn.getProfile().getName();
         if (uuid == null || name == null) return;
 
+        if (!TirnueAuth.isValidUsername(name)) {
+            String kickMsg = plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.");
+            conn.disconnect(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+            return;
+        }
+
         InetSocketAddress addr = conn.getClientAddress();
         String clientIp = addr != null ? addr.getAddress().getHostAddress() : "127.0.0.1";
 
@@ -343,6 +349,12 @@ public class PreJoinDialogManager implements Listener {
             }
 
             if (KEY_REGISTER_SUBMIT.equals(id)) {
+                if (!TirnueAuth.isValidUsername(name)) {
+                    future.complete(new DialogResult(DialogResultType.DISCONNECT_KICK,
+                            plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.")));
+                    return;
+                }
+
                 Long shownTime = dialogShownAt.get(uuid);
                 long elapsed = shownTime != null ? (System.currentTimeMillis() - shownTime) : 5000L;
                 long minReaction = registrationSurgeManager.getMinHumanReactionMs();

@@ -42,8 +42,8 @@ public class GradualChunkStreamer implements Listener {
 
         int initialDistance = plugin.getConfig().getInt("gradual-chunks.initial-view-distance", 3);
         int stage1Distance = plugin.getConfig().getInt("gradual-chunks.stage-1-distance", 6);
-        int stage2Distance = plugin.getConfig().getInt("gradual-chunks.stage-2-distance", 8);
-        int configuredTarget = plugin.getConfig().getInt("gradual-chunks.target-view-distance", 10);
+        int stage2Distance = plugin.getConfig().getInt("gradual-chunks.stage-2-distance", 10);
+        int configuredTarget = plugin.getConfig().getInt("gradual-chunks.target-view-distance", 14);
         long ticksPerStage = plugin.getConfig().getLong("gradual-chunks.ticks-per-stage", 40L); // 40 ticks = 2.0s
 
         int worldDistance = player.getWorld() != null ? player.getWorld().getViewDistance() : configuredTarget;
@@ -55,13 +55,16 @@ public class GradualChunkStreamer implements Listener {
 
         // 1. Immediately clamp to lightweight initial view distance on login
         try {
-            player.setViewDistance(initialDistance);
+            int sendDist = player.getSendViewDistance();
+            if (sendDist <= 0 || sendDist > initialDistance) {
+                player.setViewDistance(initialDistance);
+            }
         } catch (Throwable t) {
             plugin.getLogger().warning("Could not set initial view distance for " + player.getName() + ": " + t.getMessage());
             return;
         }
 
-        // 2. Schedule progressive expansion stages (Stage 1 -> Stage 2 -> Target)
+        // 2. Schedule progressive expansion stages (Stage 1 -> Stage 2 -> Target / World Default)
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
             private int step = 0;
 
@@ -74,12 +77,21 @@ public class GradualChunkStreamer implements Listener {
 
                 step++;
                 try {
+                    // If WingFlightPlugin is actively clamping sendViewDistance (e.g. 4 while wearing wings),
+                    // do not override the player's view distance above their wing clamp!
+                    int currentSendDist = player.getSendViewDistance();
+                    if (currentSendDist > 0 && currentSendDist <= 6) {
+                        stopStream(uuid);
+                        return;
+                    }
+
                     if (step == 1) {
                         player.setViewDistance(Math.min(stage1Distance, targetDistance));
                     } else if (step == 2) {
                         player.setViewDistance(Math.min(stage2Distance, targetDistance));
                     } else if (step >= 3) {
-                        player.setViewDistance(targetDistance);
+                        player.setViewDistance(-1);
+                        player.setSendViewDistance(-1);
                         stopStream(uuid);
                     }
                 } catch (Throwable t) {

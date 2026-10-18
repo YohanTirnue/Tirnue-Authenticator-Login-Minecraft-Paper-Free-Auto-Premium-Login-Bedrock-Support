@@ -61,7 +61,12 @@ public class LoginEncryptionPacketListener extends PacketListenerAbstract {
     private void handleLoginStart(PacketReceiveEvent event) {
         WrapperLoginClientLoginStart wrapper = new WrapperLoginClientLoginStart(event);
         String username = wrapper.getUsername();
-        if (username == null || !VALID_USERNAME.matcher(username).matches()) {
+        if (!TirnueAuth.isValidUsername(username)) {
+            event.setCancelled(true);
+            String kickStr = plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.");
+            Component kickReason = LegacyComponentSerializer.legacySection().deserialize(ChatColor.translateAlternateColorCodes('&', kickStr));
+            event.getUser().sendPacket(new WrapperLoginServerDisconnect(kickReason));
+            event.getUser().closeConnection();
             return;
         }
 

@@ -46,6 +46,16 @@ public class PlayerProtectionListener implements Listener {
         this.mojangService = mojangService;
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onAsyncPlayerPreLogin(AsyncPlayerPreLoginEvent event) {
+        String name = event.getName();
+        if (!TirnueAuth.isValidUsername(name)) {
+            String kickMsg = plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.");
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                    Component.text(plugin.stripColor(plugin.color(kickMsg))));
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -144,10 +154,11 @@ public class PlayerProtectionListener implements Listener {
                 return;
             }
 
-            // Otherwise, unauthenticated -> put player in limbo to /login or /register
+            // Otherwise, unauthenticated -> kick immediately! Dialog is strictly required!
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline() && !sessionManager.isAuthenticated(uuid)) {
-                    sessionManager.startLimbo(player);
+                    String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+                    player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
                 }
             });
         });
@@ -187,7 +198,10 @@ public class PlayerProtectionListener implements Listener {
         Player player = event.getPlayer();
         if (!sessionManager.isAuthenticated(player.getUniqueId())) {
             event.setCancelled(true);
-            sessionManager.sendPrompt(player);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+                player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
+            });
         }
     }
 
@@ -225,14 +239,10 @@ public class PlayerProtectionListener implements Listener {
             return;
         }
 
-        // Allow /login and /register while unauthenticated in limbo
-        if (label.equals("login") || label.equals("l") || label.equals("register") || label.equals("reg")) {
-            return;
-        }
-
-        // Block all other commands while unauthenticated
+        // If somehow in world unauthenticated, kick immediately!
         event.setCancelled(true);
-        sessionManager.sendPrompt(player);
+        String kickMsg = plugin.getMessage("dialog-required-kick", "ꑬ &cʏᴏᴜ ᴍᴜꜱᴛ ᴀᴜᴛʜᴇɴᴛɪᴄᴀᴛᴇ ᴠɪᴀ ᴛʜᴇ ʟᴏɢɪɴ ᴅɪᴀʟᴏɢ.");
+        player.kick(Component.text(plugin.stripColor(plugin.color(kickMsg))));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

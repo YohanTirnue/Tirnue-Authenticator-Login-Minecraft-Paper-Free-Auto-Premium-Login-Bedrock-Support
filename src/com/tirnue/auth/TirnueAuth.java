@@ -28,6 +28,15 @@ import java.util.regex.Pattern;
 
 public class TirnueAuth extends JavaPlugin {
     private static final Pattern HEX_PATTERN = Pattern.compile("&#([a-fA-F0-9]{6})");
+    public static final Pattern VALID_JAVA_USERNAME = Pattern.compile("^[a-zA-Z0-9_]{3,16}$");
+    public static final Pattern VALID_BEDROCK_USERNAME = Pattern.compile("^\\.[a-zA-Z0-9_]{1,16}$");
+
+    public static boolean isValidUsername(String username) {
+        if (username == null || username.isEmpty() || username.length() > 16) {
+            return false;
+        }
+        return VALID_JAVA_USERNAME.matcher(username).matches() || VALID_BEDROCK_USERNAME.matcher(username).matches();
+    }
 
     private DatabaseManager databaseManager;
     private SessionManager sessionManager;

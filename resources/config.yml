@@ -79,8 +79,8 @@ gradual-chunks:
   enabled: true
   initial-view-distance: 3
   stage-1-distance: 6
-  stage-2-distance: 8
-  target-view-distance: 10
+  stage-2-distance: 10
+  target-view-distance: 14
   ticks-per-stage: 40
 
 # Modern Paper pre-join modal dialog UI (prompts password before player enters world)

@@ -4,7 +4,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTANCE="/opt/mcsmanager/production-code/daemon/data/InstanceData/9bf0a2566ecb4ab49e0134764b855f41"
 
-CP_JARS=$(find "$INSTANCE/libraries" -name "*.jar" 2>/dev/null | tr '\n' ':')
+ADVENTURE_5=$(find "$INSTANCE/libraries" -name "adventure-api-5*.jar" 2>/dev/null | head -n 1)
+CP_JARS=$(find "$INSTANCE/libraries" -name "*.jar" ! -name "adventure-api-4*" 2>/dev/null | tr '\n' ':')
 PAPER_API=$(find "$INSTANCE/libraries" -name "*paper-api*.jar" 2>/dev/null | head -n 1)
 PACKETEVENTS_JAR="$INSTANCE/plugins/packetevents-spigot-2.13.0 (1).jar"
 FLOODGATE_JAR="$INSTANCE/plugins/floodgate-spigot.jar"
@@ -24,7 +25,7 @@ mkdir -p "$BIN_DIR"
 
 echo "[1/4] Compiling..."
 find "$SRC_DIR" -name "*.java" | xargs javac --release 21 \
-  -cp "${CP_JARS}${PAPER_API}:${PACKETEVENTS_JAR}:${FLOODGATE_JAR}:${PAPI_JAR}:${SERVER_JAR}" \
+  -cp "${ADVENTURE_5}:${PAPER_API}:${PACKETEVENTS_JAR}:${FLOODGATE_JAR}:${PAPI_JAR}:${SERVER_JAR}:${CP_JARS}" \
   -d "$BIN_DIR"
 echo "      Compiled successfully."
 
