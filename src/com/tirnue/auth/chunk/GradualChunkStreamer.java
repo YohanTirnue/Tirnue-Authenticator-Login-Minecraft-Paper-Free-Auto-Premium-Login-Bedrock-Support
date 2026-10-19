@@ -77,21 +77,19 @@ public class GradualChunkStreamer implements Listener {
 
                 step++;
                 try {
-                    // If WingFlightPlugin is actively clamping sendViewDistance (e.g. 4 while wearing wings),
-                    // do not override the player's view distance above their wing clamp!
-                    int currentSendDist = player.getSendViewDistance();
-                    if (currentSendDist > 0 && currentSendDist <= 6) {
-                        stopStream(uuid);
-                        return;
-                    }
-
                     if (step == 1) {
                         player.setViewDistance(Math.min(stage1Distance, targetDistance));
                     } else if (step == 2) {
                         player.setViewDistance(Math.min(stage2Distance, targetDistance));
                     } else if (step >= 3) {
-                        player.setViewDistance(-1);
-                        player.setSendViewDistance(-1);
+                        if (targetDistance < worldDistance) {
+                            player.setViewDistance(targetDistance);
+                        } else {
+                            player.setViewDistance(-1);
+                        }
+                        try {
+                            player.setSendViewDistance(-1);
+                        } catch (Throwable ignored) {}
                         stopStream(uuid);
                     }
                 } catch (Throwable t) {
@@ -140,8 +138,8 @@ public class GradualChunkStreamer implements Listener {
         if (!event.getFrom().getWorld().equals(event.getTo().getWorld())) {
             return;
         }
-        // Stream for intra-world teleports exceeding 64 blocks
-        if (event.getFrom().distanceSquared(event.getTo()) > 64.0 * 64.0) {
+        // Stream for intra-world teleports exceeding 256 blocks (16 chunks)
+        if (event.getFrom().distanceSquared(event.getTo()) > 256.0 * 256.0) {
             startStream(event.getPlayer());
         }
     }
