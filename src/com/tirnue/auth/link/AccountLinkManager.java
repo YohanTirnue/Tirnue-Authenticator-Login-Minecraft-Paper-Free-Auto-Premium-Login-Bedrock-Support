@@ -94,11 +94,27 @@ public class AccountLinkManager {
     }
 
     public LinkedAccount getLinkByBedrockUuid(UUID uuid) {
-        return uuid != null ? bedrockUuidToLink.get(uuid) : null;
+        if (uuid == null) return null;
+        LinkedAccount link = bedrockUuidToLink.get(uuid);
+        if (link != null) return link;
+        for (LinkedAccount l : bedrockUuidToLink.values()) {
+            if (uuid.equals(l.getBedrockUuid()) || uuid.equals(l.getCopyUuid())) {
+                return l;
+            }
+        }
+        return null;
     }
 
     public LinkedAccount getLinkByBedrockName(String name) {
-        return name != null ? bedrockNameToLink.get(name.toLowerCase()) : null;
+        if (name == null) return null;
+        String lower = name.toLowerCase();
+        LinkedAccount link = bedrockNameToLink.get(lower);
+        if (link != null) return link;
+        String raw = lower.startsWith(".") ? lower.substring(1) : lower;
+        String dotted = "." + raw;
+        link = bedrockNameToLink.get(dotted);
+        if (link != null) return link;
+        return bedrockNameToLink.get(raw);
     }
 
     public LinkedAccount getLinkByJavaUuid(UUID uuid) {

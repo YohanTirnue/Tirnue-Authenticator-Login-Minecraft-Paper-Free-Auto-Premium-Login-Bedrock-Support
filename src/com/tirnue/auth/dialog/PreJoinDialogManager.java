@@ -97,13 +97,13 @@ public class PreJoinDialogManager implements Listener {
             return true;
         }
 
-        // 1. Bedrock players (prefix '.' or Floodgate)
+        // 1. Bedrock players (prefix '.' or genuine Floodgate player)
         if (username.startsWith(".")) {
             return true;
         }
         if (hasFloodgate && uuid != null) {
             try {
-                if (FloodgateApi.getInstance().isFloodgateId(uuid) || FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
+                if (FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
                     return true;
                 }
             } catch (Throwable ignored) {

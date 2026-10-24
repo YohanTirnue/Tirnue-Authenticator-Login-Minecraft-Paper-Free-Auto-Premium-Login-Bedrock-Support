@@ -37,6 +37,14 @@ public class BedrockAuthListener implements Listener {
     public boolean isBedrock(Player player) {
         if (player == null) return false;
         if (player.getName().startsWith(".")) return true;
+        try {
+            for (com.destroystokyo.paper.profile.ProfileProperty prop : player.getPlayerProfile().getProperties()) {
+                if ("tirnue_bedrock_link".equals(prop.getName())) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
         if (hasFloodgate) {
             try {
                 UUID uuid = player.getUniqueId();
@@ -45,6 +53,7 @@ public class BedrockAuthListener implements Listener {
                 }
                 for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
                     if (uuid.equals(fp.getCorrectUniqueId()) || uuid.equals(fp.getJavaUniqueId())
+                            || (fp.getLinkedPlayer() != null && uuid.equals(fp.getLinkedPlayer().getBedrockId()))
                             || player.getName().equalsIgnoreCase(fp.getUsername())
                             || player.getName().equalsIgnoreCase("." + fp.getUsername())
                             || player.getName().equalsIgnoreCase(fp.getJavaUsername())) {
@@ -66,6 +75,7 @@ public class BedrockAuthListener implements Listener {
                 }
                 for (org.geysermc.floodgate.api.player.FloodgatePlayer fp : FloodgateApi.getInstance().getPlayers()) {
                     if (uuid.equals(fp.getCorrectUniqueId()) || uuid.equals(fp.getJavaUniqueId())
+                            || (fp.getLinkedPlayer() != null && uuid.equals(fp.getLinkedPlayer().getBedrockId()))
                             || (name != null && (name.equalsIgnoreCase(fp.getUsername())
                             || name.equalsIgnoreCase("." + fp.getUsername())
                             || name.equalsIgnoreCase(fp.getJavaUsername())))) {
@@ -174,20 +184,45 @@ public class BedrockAuthListener implements Listener {
             return;
         }
         String name = event.getName();
-        if (name == null || name.startsWith(".")) {
+        if (name == null) {
             return;
         }
         if (plugin.getAccountLinkManager() != null) {
-            com.tirnue.auth.link.LinkedAccount link = plugin.getAccountLinkManager().getLinkByJavaName(name);
+            com.tirnue.auth.link.AccountLinkManager linkManager = plugin.getAccountLinkManager();
+
+            // 1. Bedrock connection joining with a JAVA Master link
+            if (name.startsWith(".")) {
+                com.tirnue.auth.link.LinkedAccount link = linkManager.getLinkByBedrockName(name);
+                if (link == null && event.getUniqueId() != null) {
+                    link = linkManager.getLinkByBedrockUuid(event.getUniqueId());
+                }
+                if (link != null && link.isJavaMaster()) {
+                    UUID targetUuid = link.getMasterUuid();
+                    String targetName = link.getJavaName();
+                    try {
+                        com.destroystokyo.paper.profile.PlayerProfile profile = event.getPlayerProfile();
+                        profile.setName(targetName);
+                        profile.setId(targetUuid);
+                        event.setPlayerProfile(profile);
+                        plugin.getLogger().info("Applied linked Java Master " + targetName + " (" + targetUuid + ") to Bedrock connection " + name);
+                    } catch (Throwable t) {
+                        plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to setPlayerProfile for linked Bedrock connection " + name + ": " + t.getMessage(), t);
+                    }
+                }
+                return;
+            }
+
+            // 2. Java connection joining with a BEDROCK Master link
+            com.tirnue.auth.link.LinkedAccount link = linkManager.getLinkByJavaName(name);
             if (link != null && link.isBedrockMaster()) {
                 UUID targetUuid = link.getMasterUuid();
                 try {
                     com.destroystokyo.paper.profile.PlayerProfile profile = event.getPlayerProfile();
                     profile.setId(targetUuid);
                     event.setPlayerProfile(profile);
-                    plugin.getLogger().info("Applied linked Bedrock master UUID " + targetUuid + " to Java player " + name);
+                    plugin.getLogger().info("Applied linked Bedrock Master UUID " + targetUuid + " to Java connection " + name);
                 } catch (Throwable t) {
-                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to setPlayerProfile for linked Java player " + name + ": " + t.getMessage(), t);
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to setPlayerProfile for linked Java connection " + name + ": " + t.getMessage(), t);
                 }
             }
         }
