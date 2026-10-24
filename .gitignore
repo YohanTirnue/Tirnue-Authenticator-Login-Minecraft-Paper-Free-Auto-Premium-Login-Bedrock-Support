@@ -2,3 +2,4 @@ bin/
 *.jar
 *.db
 *.log
+graphify-out/

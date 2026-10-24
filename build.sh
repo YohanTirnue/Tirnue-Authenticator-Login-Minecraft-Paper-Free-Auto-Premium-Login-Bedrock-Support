@@ -7,10 +7,10 @@ INSTANCE="/opt/mcsmanager/production-code/daemon/data/InstanceData/9bf0a2566ecb4
 ADVENTURE_5=$(find "$INSTANCE/libraries" -name "adventure-api-5*.jar" 2>/dev/null | head -n 1)
 CP_JARS=$(find "$INSTANCE/libraries" -name "*.jar" ! -name "adventure-api-4*" 2>/dev/null | tr '\n' ':')
 PAPER_API=$(find "$INSTANCE/libraries" -name "*paper-api*.jar" 2>/dev/null | head -n 1)
-PACKETEVENTS_JAR="$INSTANCE/plugins/packetevents-spigot-2.13.0 (1).jar"
+PACKETEVENTS_JAR=$(ls "$INSTANCE"/plugins/packetevents*.jar 2>/dev/null | head -n 1)
 FLOODGATE_JAR="$INSTANCE/plugins/floodgate-spigot.jar"
 PAPI_JAR="$INSTANCE/plugins/PlaceholderAPI-2.12.3.jar"
-SERVER_JAR="$INSTANCE/versions/26.2/paper-26.2.jar"
+SERVER_JAR=$(ls -t "$INSTANCE"/versions/*/*.jar 2>/dev/null | head -n 1)
 
 SRC_DIR="$SCRIPT_DIR/src"
 BIN_DIR="$SCRIPT_DIR/bin"

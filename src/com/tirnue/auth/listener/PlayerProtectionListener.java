@@ -53,6 +53,19 @@ public class PlayerProtectionListener implements Listener {
             String kickMsg = plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.");
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
                     Component.text(plugin.stripColor(plugin.color(kickMsg))));
+            return;
+        }
+        if (plugin.getMojangSessionVerifier() != null && event.getPlayerProfile() != null && event.getPlayerProfile().getProperties() != null) {
+            for (com.destroystokyo.paper.profile.ProfileProperty prop : event.getPlayerProfile().getProperties()) {
+                if ("tirnue_verified_uuid".equals(prop.getName()) && prop.getValue() != null) {
+                    try {
+                        UUID verifiedMojangUuid = UUID.fromString(prop.getValue());
+                        plugin.getMojangSessionVerifier().storeVerified(name, verifiedMojangUuid);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                    break;
+                }
+            }
         }
     }
 

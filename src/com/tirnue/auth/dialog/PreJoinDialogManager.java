@@ -163,6 +163,20 @@ public class PreJoinDialogManager implements Listener {
         String name = conn.getProfile().getName();
         if (uuid == null || name == null) return;
 
+        // Check if Velocity proxy verified Mojang session and forwarded tirnue_verified_uuid property
+        if (plugin.getMojangSessionVerifier() != null && conn.getProfile().getProperties() != null) {
+            for (com.destroystokyo.paper.profile.ProfileProperty prop : conn.getProfile().getProperties()) {
+                if ("tirnue_verified_uuid".equals(prop.getName()) && prop.getValue() != null) {
+                    try {
+                        UUID verifiedMojangUuid = UUID.fromString(prop.getValue());
+                        plugin.getMojangSessionVerifier().storeVerified(name, verifiedMojangUuid);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                    break;
+                }
+            }
+        }
+
         if (!TirnueAuth.isValidUsername(name)) {
             String kickMsg = plugin.getMessage("invalid-username-kick", "ꑬ &cɪɴᴠᴀʟɪᴅ ᴜꜱᴇʀɴᴀᴍᴇ! ꜱᴘᴇᴄɪᴀʟ ᴄʜᴀʀᴀᴄᴛᴇʀꜱ ᴀʀᴇ ɴᴏᴛ ᴀʟʟᴏᴡᴇᴅ.");
             conn.disconnect(Component.text(plugin.stripColor(plugin.color(kickMsg))));

@@ -59,6 +59,21 @@ public class LoginEncryptionPacketListener extends PacketListenerAbstract {
     }
 
     private void handleLoginStart(PacketReceiveEvent event) {
+        // When behind Velocity proxy (or connecting from remote Velocity VPS 140.245.47.120),
+        // Velocity handles RSA/AES encryption and forwards tirnue_verified_uuid via MODERN forwarding.
+        try {
+            if (io.papermc.paper.configuration.GlobalConfiguration.get().proxies.velocity.enabled) {
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        if (event.getUser() != null && event.getUser().getAddress() != null && event.getUser().getAddress().getAddress() != null) {
+            String remoteIp = event.getUser().getAddress().getAddress().getHostAddress();
+            if ("140.245.47.120".equals(remoteIp) || "127.0.0.1".equals(remoteIp)) {
+                return;
+            }
+        }
+
         WrapperLoginClientLoginStart wrapper = new WrapperLoginClientLoginStart(event);
         String username = wrapper.getUsername();
         if (!TirnueAuth.isValidUsername(username)) {
